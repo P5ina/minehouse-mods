@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "minehouse-menu",
+  "version": "${version}",
+  "name": "MineHouse Menu",
+  "description": "Главное меню сборки MineHouse: логотип сервера, кнопка «Играть на MineHouse» с онлайном, ссылки на сайт и Discord.",
+  "authors": ["MineHouse"],
+  "contact": {
+    "homepage": "https://www.minehouse.pro"
+  },
+  "license": "MIT",
+  "icon": "assets/minehouse-menu/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["pro.minehouse.menu.MinehouseMenu"]
+  },
+  "mixins": ["minehouse-menu.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.3",
+    "java": ">=25"
+  }
+}

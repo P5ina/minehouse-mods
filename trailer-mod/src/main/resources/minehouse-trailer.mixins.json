@@ -1,0 +1,7 @@
+{
+  "required": true,
+  "package": "pro.minehouse.trailer.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["CameraMixin", "ClockMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

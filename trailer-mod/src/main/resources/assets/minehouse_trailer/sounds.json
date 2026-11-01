@@ -1,0 +1,5 @@
+{
+  "music": {
+    "sounds": [{ "name": "minehouse_trailer:music", "stream": true }]
+  }
+}

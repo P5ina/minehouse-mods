@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "minehouse-trailer",
+  "version": "${version}",
+  "name": "MineHouse Trailer",
+  "description": "Клиентский мод для съёмки трейлера MineHouse в одиночном мире: NPC, метеорит и кинокамера по раскадровке под 126 BPM (/trailer).",
+  "authors": ["MineHouse"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["pro.minehouse.trailer.MinehouseTrailer"]
+  },
+  "mixins": ["minehouse-trailer.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.20.1",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}

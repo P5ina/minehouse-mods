@@ -1,0 +1,61 @@
+{
+  "title": "Падение метеорита",
+  "audience": { "gather": "teleport", "radius": 30 },
+  "markers": { "impact": "0:13", "aftermath": "0:16" },
+  "length": "0:45",
+  "actors": {
+    "cam": { "type": "camera" },
+    "meteor": { "type": "block", "block": "minecraft:magma_block", "scale": 6, "bright": true, "viewRange": 8 }
+  },
+  "tracks": {
+    "world": [
+      { "at": "0:00", "do": "time", "to": 18000, "over": "6s" },
+      { "at": "0:00", "do": "weather", "to": "thunder", "over": "6s" },
+      { "at": "0:26", "do": "weather", "to": "clear", "over": "4s" },
+      { "at": "0:26", "do": "time", "to": 13000, "over": "4s", "backward": true }
+    ],
+    "camera": [
+      { "at": "0:00", "do": "cinematic" },
+      { "at": "0:00", "do": "path", "orbit": { "center": [0, 10, 0], "radius": 40, "height": 25, "from": 200, "to": 260 }, "over": "8s" },
+      { "at": "0:08", "do": "path", "points": [ { "pos": [34, 5, 30] }, { "pos": [28, 4, 25] }, { "pos": [22, 4, 20] } ], "look": [0, 18, 0], "over": "6s", "ease": "linear" },
+      { "at": "0:12", "do": "shake", "strength": 0.3, "over": "2s" },
+      { "at": "0:14", "do": "shake", "strength": 1.5, "over": "2.5s" },
+      { "at": "0:16", "do": "path", "orbit": { "center": [0, 0, 0], "radius": 22, "height": 10, "from": 30, "to": 150 }, "over": "10s" },
+      { "at": "0:26", "do": "cinematic", "on": false }
+    ],
+    "actors": [
+      { "at": "0:06", "do": "spawn", "actor": "meteor", "pos": [60, 120, -40] },
+      { "at": "0:06", "do": "move", "actor": "meteor", "to": [0, 2, 0], "over": "8s", "ease": "inQuad" },
+      { "at": "0:06", "do": "transform", "actor": "meteor", "rotate": [40, 120, 0], "over": "3s" },
+      { "at": "0:09", "do": "transform", "actor": "meteor", "rotate": [80, 240, 20], "over": "3s" },
+      { "at": "0:12", "do": "transform", "actor": "meteor", "rotate": [120, 0, 40], "over": "2s" },
+      { "at": "0:14", "do": "move", "actor": "meteor", "to": [0, -1, 0], "over": "2s", "ease": "outQuad" },
+      { "at": "0:14", "do": "transform", "actor": "meteor", "scale": 3, "over": "2s", "ease": "outCubic" }
+    ],
+    "fx": [
+      { "at": "0:02", "do": "meteors", "over": "9s", "count": 8, "radius": 45, "size": [0.3, 0.9], "fall": "2s", "craters": false },
+      { "at": "0:06", "do": "particles", "actor": "meteor", "id": "minecraft:flame", "count": 30, "spread": 2, "speed": 0.05, "over": "8s" },
+      { "at": "0:06", "do": "particles", "actor": "meteor", "id": "minecraft:large_smoke", "count": 15, "spread": 2.5, "speed": 0.02, "over": "8s" },
+      { "at": "0:14", "do": "explosion", "pos": [0, 2, 0] },
+      { "at": "0:14", "do": "lightning", "pos": [0, 0, 0] },
+      { "at": "0:14", "do": "lightning", "pos": [6, 0, -4] },
+      { "at": "0:14", "do": "blocks", "mode": "ghost", "shape": { "type": "bowl", "radius": 9, "depth": 4, "palette": ["minecraft:magma_block", "minecraft:blackstone", "minecraft:basalt", "minecraft:obsidian"] } },
+      { "at": "0:14", "do": "particles", "pos": [0, 1, 0], "id": "minecraft:lava", "count": 40, "spread": 4, "speed": 0.2, "over": "3s" },
+      { "at": "0:15", "do": "particles", "pos": [0, 2, 0], "id": "minecraft:campfire_cosy_smoke", "count": 6, "spread": 5, "speed": 0.02, "over": "12s" },
+      { "at": "0:20", "do": "particles", "pos": [0, 1, 0], "id": "minecraft:end_rod", "count": 4, "spread": 2, "speed": 0.03, "over": "25s" }
+    ],
+    "audio": [
+      { "at": "0:01", "do": "sound", "id": "minecraft:ambient.cave", "volume": 1 },
+      { "at": "0:06", "do": "sound", "id": "minecraft:entity.ender_dragon.growl", "volume": 1, "pitch": 0.5 },
+      { "at": "0:11", "do": "sound", "id": "minecraft:item.firecharge.use", "volume": 2, "pitch": 0.5 },
+      { "at": "0:14", "do": "sound", "id": "minecraft:entity.generic.explode", "volume": 6, "pitch": 0.6 },
+      { "at": "0:14", "do": "sound", "id": "minecraft:entity.lightning_bolt.thunder", "volume": 4, "pitch": 0.8 },
+      { "at": "0:20", "do": "sound", "id": "minecraft:block.beacon.activate", "pos": [0, 1, 0], "volume": 3, "pitch": 0.7 }
+    ],
+    "text": [
+      { "at": "0:00", "do": "title", "text": "&6Падение метеорита", "sub": "&7смотрите в небо", "stay": "4s" },
+      { "at": "0:17", "do": "title", "text": "&cОно здесь", "sub": "&7что внутри?", "stay": "3s" },
+      { "at": "0:26", "do": "actionbar", "text": "&7Подойдите к кратеру, пока он не остыл" }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "pro.minehouse.menu.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["TitleScreenMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
