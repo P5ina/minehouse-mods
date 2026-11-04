@@ -25,6 +25,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import pro.minehouse.menu.MenuConfig;
+import pro.minehouse.menu.PackModsScreen;
 import pro.minehouse.menu.PackUpdater;
 import pro.minehouse.menu.SelfTest;
 import pro.minehouse.menu.ServerStatus;
@@ -97,6 +98,11 @@ public abstract class TitleScreenMixin extends Screen {
 		Intro.Meta intro = Intro.meta();
 		if (intro != null) {
 			links.add(Button.builder(Component.literal("Интро"), b -> this.minecraft.gui.setScreen(new IntroScreen(this, intro, true))).build());
+		}
+		if (PackUpdater.managed()) {
+			links.add(Button.builder(Component.literal("Моды"), b -> this.minecraft.gui.setScreen(new PackModsScreen(this)))
+				.tooltip(Tooltip.create(Component.literal("Какие моды сборки включены")))
+				.build());
 		}
 		int w = (200 - 4 * (links.size() - 1)) / links.size();
 		for (int i = 0; i < links.size(); i++) {

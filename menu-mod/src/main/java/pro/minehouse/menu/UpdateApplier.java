@@ -28,10 +28,24 @@ public final class UpdateApplier {
 	private UpdateApplier() {
 	}
 
-	static void scheduleOnExit(Plan plan) throws Exception {
-		Path tmpDir = Files.createTempDirectory("minehouse-update");
-		Path planFile = tmpDir.resolve("plan.json");
+	private static Path planFile;
+	private static boolean hooked;
+
+	/**
+	 * Runs the plan after the game exits. A later call replaces the plan (the
+	 * player changed the mods again), so one helper process applies the last one.
+	 */
+	static synchronized void scheduleOnExit(Plan plan) throws Exception {
+		if (planFile == null) {
+			planFile = Files.createTempDirectory("minehouse-update").resolve("plan.json");
+		}
 		Files.writeString(planFile, GSON.toJson(plan), StandardCharsets.UTF_8);
+		if (hooked) {
+			return;
+		}
+		hooked = true;
+		Path tmpDir = planFile.getParent();
+		Path plan0 = planFile;
 
 		// Our own classes + Gson, copied out so the originals can be replaced.
 		Path self = Path.of(UpdateApplier.class.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -42,9 +56,12 @@ public final class UpdateApplier {
 		String javaBin = ProcessHandle.current().info().command().orElse("java");
 		long pid = ProcessHandle.current().pid();
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			if (!Files.exists(plan0)) {
+				return; // cancelled
+			}
 			try {
 				new ProcessBuilder(javaBin, "-cp", selfCopy + java.io.File.pathSeparator + gsonCopy,
-					UpdateApplier.class.getName(), Long.toString(pid), planFile.toString())
+					UpdateApplier.class.getName(), Long.toString(pid), plan0.toString())
 					.redirectErrorStream(true)
 					.redirectOutput(tmpDir.resolve("apply.log").toFile())
 					.start();
@@ -52,6 +69,17 @@ public final class UpdateApplier {
 				MinehouseMenu.LOG.warn("Can't start modpack update", e);
 			}
 		}, "MineHouse pack update"));
+	}
+
+	/** Nothing to apply any more (the player switched the mods back). */
+	static synchronized void cancel() {
+		if (planFile != null) {
+			try {
+				Files.deleteIfExists(planFile);
+			} catch (Exception e) {
+				MinehouseMenu.LOG.warn("Can't cancel modpack update", e);
+			}
+		}
 	}
 
 	/** Entry point of the helper process: UpdateApplier <pid> <plan.json> */
