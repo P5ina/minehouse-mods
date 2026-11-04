@@ -1,6 +1,7 @@
 package pro.minehouse.menu.intro;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -16,7 +17,8 @@ import org.lwjgl.system.MemoryUtil;
 import pro.minehouse.menu.MinehouseMenu;
 
 /**
- * Plays the intro full screen, then opens {@code next} (the title screen).
+ * Plays the intro full screen, then runs what comes next (the title screen, or quick play when
+ * the MineHouse launcher starts the game straight onto the server).
  * The first, automatic showing can't be skipped; a replay (the «Интро» button) ends on any key
  * or click. Waits for the loading overlay (and the animated Mojang logo)
  * to finish first, so the intro starts on a clean screen with a few frames already decoded.
@@ -26,7 +28,7 @@ public final class IntroScreen extends Screen {
 	private static final double FADE_OUT = 0.6;
 	private static final boolean INTRO_TEST = Boolean.getBoolean("minehouse.introtest");
 
-	private final Screen next;
+	private final Runnable then;
 	private final Intro.Meta meta;
 	private final boolean skippable;
 	private long playStart = -1;
@@ -47,8 +49,13 @@ public final class IntroScreen extends Screen {
 	private int droppedFrames;
 
 	public IntroScreen(Screen next, Intro.Meta meta, boolean skippable) {
+		this(() -> Minecraft.getInstance().gui.setScreen(next), meta, skippable);
+	}
+
+	/** {@code then} runs when the intro ends: one of the game's initial screens, quick play or the title screen. */
+	public IntroScreen(Runnable then, Intro.Meta meta, boolean skippable) {
 		super(Component.literal("MineHouse"));
-		this.next = next;
+		this.then = then;
 		this.meta = meta;
 		this.skippable = skippable;
 	}
@@ -216,7 +223,7 @@ public final class IntroScreen extends Screen {
 		}
 		this.finished = true;
 		this.release();
-		this.minecraft.gui.setScreen(this.next);
+		this.then.run();
 	}
 
 	@Override

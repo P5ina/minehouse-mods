@@ -1,30 +1,28 @@
 package pro.minehouse.menu.mixin;
 
+import java.util.List;
+import java.util.function.Function;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import pro.minehouse.menu.intro.Intro;
 import pro.minehouse.menu.intro.IntroScreen;
 
-/** Shows the intro instead of the title screen the first time it opens (once per intro version). */
+/**
+ * Adds the intro as the last of the game's initial screens (once per intro version), so it plays
+ * before the title screen and also before quick play: the MineHouse launcher starts the game with
+ * --quickPlayMultiplayer, which skips the title screen.
+ */
 @Mixin(Gui.class)
 public abstract class GuiMixin {
-	@Shadow
-	public abstract void setScreen(Screen screen);
-
-	@Inject(method = "setScreen", at = @At("HEAD"), cancellable = true)
-	private void minehouse$intro(Screen screen, CallbackInfo ci) {
-		if (screen instanceof TitleScreen) {
-			Intro.Meta meta = Intro.takePending();
-			if (meta != null) {
-				ci.cancel();
-				this.setScreen(new IntroScreen(screen, meta, false));
-			}
+	@Inject(method = "addInitialScreens", at = @At("RETURN"))
+	private void minehouse$intro(List<Function<Runnable, Screen>> screens, CallbackInfoReturnable<Boolean> cir) {
+		Intro.Meta meta = Intro.takePending();
+		if (meta != null) {
+			screens.add(next -> new IntroScreen(next, meta, false));
 		}
 	}
 }
