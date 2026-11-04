@@ -30,7 +30,7 @@ public final class IntroScreen extends Screen {
 
 	private final Runnable then;
 	private final Intro.Meta meta;
-	private final boolean skippable;
+	private boolean skippable;
 	private long playStart = -1;
 	private IntroDecoder decoder;
 	private IntroAudio audio;
@@ -113,6 +113,10 @@ public final class IntroScreen extends Screen {
 					this.silentStart = System.nanoTime();
 				}
 			}
+		} else if (!this.skippable && this.time() > 6.0 && this.shownFrames < 24) {
+			// a slow PC that can't decode the video in time: let the player skip it
+			this.skippable = true;
+			MinehouseMenu.LOG.info("Intro is too slow here ({} frames in {} s), it can be skipped now", this.shownFrames, String.format("%.1f", this.time()));
 		} else if (this.time() >= this.length || (System.nanoTime() - this.playStart) / 1e9 > this.length + 10) {
 			// the wall-clock limit keeps an unskippable intro from hanging if audio stalls
 			this.finish();
@@ -164,7 +168,7 @@ public final class IntroScreen extends Screen {
 				msg -> MinehouseMenu.LOG.info("Intro screenshot: {}", msg.getString()));
 			MinehouseMenu.LOG.info("MINEHOUSE_INTRO_OK t={} frame={}", t, index);
 		}
-		if (t > 1.5 && t < this.length - 2.0) {
+		if (this.skippable && t > 1.5 && t < this.length - 2.0) {
 			String hint = "Любая клавиша — пропустить";
 			int a = (int) (Math.min(1.0, (t - 1.5) / 0.5) * 110);
 			graphics.text(this.font, hint, this.width - this.font.width(hint) - 6, this.height - 14, ARGB.color(a, 0xFFFFFF), true);

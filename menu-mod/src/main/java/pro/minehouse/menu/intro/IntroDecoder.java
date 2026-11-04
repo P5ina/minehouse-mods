@@ -25,8 +25,8 @@ import org.slf4j.LoggerFactory;
  * with {@link #release} once it has converted them. Memory: n * (gop + 2) YUV 4:2:0 frames
  * (about 3 MB each at 1080p).
  *
- * If decoding falls behind, {@link #frame} returns null (the caller keeps the last frame) and
- * workers skip GOPs the player has already passed.
+ * If decoding falls behind, {@link #frame} returns late frames (or null: the caller keeps the last
+ * frame) and workers skip GOPs the player has already passed.
  */
 public final class IntroDecoder implements AutoCloseable {
 	private static final Logger LOG = LoggerFactory.getLogger("MineHouse Intro");
@@ -71,6 +71,7 @@ public final class IntroDecoder implements AutoCloseable {
 	private final int gops;
 	private final Worker[] workers;
 	private volatile int playerGop;
+	private int lastReturned = -1;
 	private volatile boolean closed;
 	private volatile Throwable error;
 	private final long startNanos = System.nanoTime();
@@ -111,8 +112,10 @@ public final class IntroDecoder implements AutoCloseable {
 	}
 
 	/**
-	 * The frame {@code index}, or null if it isn't decoded yet. Frames before {@code index}
-	 * that are still queued are dropped. Call with non-decreasing indices and hand the result
+	 * The newest decoded frame at or before {@code index}, or null if there is none newer than the
+	 * last one returned (the caller keeps showing that). Older queued frames are dropped. On a slow
+	 * CPU the decoder falls behind real time, so frames arrive late: showing them late keeps the
+	 * picture moving (choppy) instead of black. Call with non-decreasing indices and hand the result
 	 * back with {@link #release} once it is used.
 	 */
 	public Frame frame(int index) {
@@ -123,23 +126,28 @@ public final class IntroDecoder implements AutoCloseable {
 		if (g > this.playerGop) {
 			this.playerGop = g;
 		}
-		Worker w = this.workers[g % this.workers.length];
-		while (true) {
-			Frame f = w.queue.peek();
-			if (f == null) {
-				return null;
-			}
-			if (f.index < index) {
+		Frame best = null;
+		for (Worker w : this.workers) {
+			while (true) {
+				Frame f = w.queue.peek();
+				if (f == null || f.index > index) {
+					break;
+				}
 				w.queue.poll();
-				w.free.offer(f);
-				continue;
+				if (f.index <= this.lastReturned || (best != null && f.index < best.index)) {
+					w.free.offer(f);
+					continue;
+				}
+				if (best != null) {
+					best.owner.free.offer(best);
+				}
+				best = f;
 			}
-			if (f.index == index) {
-				w.queue.poll();
-				return f;
-			}
-			return null; // the worker is already past this frame (it skipped ahead)
 		}
+		if (best != null) {
+			this.lastReturned = best.index;
+		}
+		return best;
 	}
 
 	public void release(Frame f) {
