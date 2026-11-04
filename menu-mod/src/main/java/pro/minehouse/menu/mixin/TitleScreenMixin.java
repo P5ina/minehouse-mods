@@ -28,6 +28,8 @@ import pro.minehouse.menu.MenuConfig;
 import pro.minehouse.menu.PackUpdater;
 import pro.minehouse.menu.SelfTest;
 import pro.minehouse.menu.ServerStatus;
+import pro.minehouse.menu.intro.Intro;
+import pro.minehouse.menu.intro.IntroScreen;
 
 /**
  * Title screen tweaks:
@@ -91,6 +93,10 @@ public abstract class TitleScreenMixin extends Screen {
 		links.add(Button.builder(Component.literal("Сайт"), ConfirmLinkScreen.confirmLink(this, URI.create(MenuConfig.siteUrl), true)).build());
 		if (!MenuConfig.discordUrl.isEmpty()) {
 			links.add(Button.builder(Component.literal("Discord"), ConfirmLinkScreen.confirmLink(this, URI.create(MenuConfig.discordUrl), true)).build());
+		}
+		Intro.Meta intro = Intro.meta();
+		if (intro != null) {
+			links.add(Button.builder(Component.literal("Интро"), b -> this.minecraft.gui.setScreen(new IntroScreen(this, intro, true))).build());
 		}
 		int w = (200 - 4 * (links.size() - 1)) / links.size();
 		for (int i = 0; i < links.size(); i++) {

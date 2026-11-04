@@ -20,6 +20,7 @@ public final class MenuConfig {
 	public static String discordUrl = "https://discord.gg/gCYGxDzaCb";
 	public static String packVersion = "";
 	public static String updateUrl = "https://www.minehouse.pro/modpack/manifest.json";
+	public static boolean introEnabled = true;
 
 	private static final String HEADER = """
 		Настройки главного меню MineHouse.
@@ -27,7 +28,8 @@ public final class MenuConfig {
 		site.url        ссылка кнопки «Сайт»
 		discord.url     ссылка кнопки «Discord» (пусто = кнопки нет)
 		pack.version    версия сборки, видна в углу меню
-		update.url      откуда брать обновления сборки (пусто = не обновлять)""";
+		update.url      откуда брать обновления сборки (пусто = не обновлять)
+		intro           показывать вступительный ролик перед меню (true/false)""";
 
 	private MenuConfig() {
 	}
@@ -48,6 +50,7 @@ public final class MenuConfig {
 		discordUrl = p.getProperty("discord.url", discordUrl).trim();
 		packVersion = p.getProperty("pack.version", packVersion).trim();
 		updateUrl = p.getProperty("update.url", updateUrl).trim();
+		introEnabled = !"false".equalsIgnoreCase(p.getProperty("intro", "true").trim());
 		if (!Files.exists(file)) {
 			p.setProperty("server.name", serverName);
 			p.setProperty("server.address", serverAddress);

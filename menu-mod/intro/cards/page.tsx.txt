@@ -1,0 +1,153 @@
+"use client"
+
+// Temporary capture page for the menu intro title cards (not committed).
+import { useEffect, useRef, useState } from "react"
+
+import { LogoMark } from "@/components/minehouse/logo"
+import { CipherReveal, type CipherRevealHandle } from "@/components/react-bits/cipher-reveal"
+import { GlyphLottery, type GlyphLotteryHandle } from "@/components/react-bits/glyph-lottery"
+import { VoxelArc } from "@/components/react-bits/voxel-arc"
+
+const BG = "#09090b"
+const clamp = (x: number) => Math.max(0, Math.min(1, x))
+const ease = (x: number) => 1 - Math.pow(1 - clamp(x), 3)
+const ramp = (t: number, a: number, b: number) => ease((t - a) / (b - a))
+
+export default function IntroCards() {
+  const [card, setCard] = useState(1)
+  const [t, setT] = useState(0)
+  const glyph = useRef<GlyphLotteryHandle>(null)
+  const cipher = useRef<CipherRevealHandle>(null)
+  const fired = useRef({ glyph: false, cipher: false })
+
+  useEffect(() => {
+    setCard(Number(new URLSearchParams(location.search).get("card") ?? 1))
+    let t0 = -1
+    ;(window as unknown as { __go: () => void }).__go = () => {
+      t0 = performance.now()
+    }
+    let raf = 0
+    const tick = () => {
+      setT(t0 < 0 ? 0 : (performance.now() - t0) / 1000)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  const glyphAt = card === 1 ? 4.2 : 0.4
+  useEffect(() => {
+    if (!fired.current.glyph && t >= glyphAt) {
+      fired.current.glyph = true
+      glyph.current?.spin()
+    }
+    if (card === 2 && !fired.current.cipher && t >= 1.6) {
+      fired.current.cipher = true
+      cipher.current?.replay()
+    }
+  }, [t, card, glyphAt])
+
+  const bgOpacity = card === 1 ? ramp(t, 0.2, 3.5) : 1
+  const markIn = card === 1 ? ramp(t, 1.4, 4.0) : ramp(t, 0, 0.8)
+  const push = card === 1 ? 1 + 0.07 * clamp((t - 1.4) / 9.65) : 1 + 0.03 * clamp(t / 9.9)
+  const fadeOut = card === 2 ? ramp(t, 8.0, 9.8) : 0
+  const sweep = card === 1 ? clamp((t - 6.6) / 1.4) : -1
+
+  return (
+    <div style={{ position: "fixed", inset: 0, background: BG, overflow: "hidden" }}>
+      <style>{"nextjs-portal{display:none!important}"}</style>
+      <div style={{ position: "absolute", inset: 0, opacity: bgOpacity }}>
+        <VoxelArc
+          color="#3f3f46"
+          accentColor="#e4e4e7"
+          backgroundColor={BG}
+          horizon={0.72}
+          curvature={0.55}
+          voxelSize={0.5}
+          waveHeight={1.1}
+          speed={0.35}
+          glow={0.6}
+          haze={0.6}
+          bloom={0.3}
+          grain={0.12}
+          dpr={1}
+          className="min-h-0"
+        />
+        <div style={{ position: "absolute", inset: 0, background: `radial-gradient(ellipse 55% 45% at 50% 45%, ${BG}, transparent)`, opacity: 0.8 }} />
+      </div>
+
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          transform: `scale(${push})`,
+        }}
+      >
+        <div
+          style={{
+            position: "relative",
+            opacity: markIn,
+            transform: `scale(${0.86 + 0.14 * markIn})`,
+            filter: `blur(${(1 - markIn) * 14}px)`,
+            color: "#fafafa",
+          }}
+        >
+          <LogoMark size={card === 1 ? 210 : 150} />
+          {sweep >= 0 && sweep < 1 && (
+            <div
+              style={{
+                position: "absolute",
+                inset: -40,
+                background: `linear-gradient(105deg, transparent ${sweep * 140 - 30}%, rgba(255,255,255,0.55) ${sweep * 140 - 15}%, transparent ${sweep * 140}%)`,
+                mixBlendMode: "overlay",
+                WebkitMask: "url(/brand/logo-mark.png) center / 210px no-repeat",
+                mask: "url(/brand/logo-mark.png) center / 210px no-repeat",
+              }}
+            />
+          )}
+        </div>
+        <div style={{ marginTop: card === 1 ? 44 : 30, width: "100%", opacity: t >= glyphAt ? 1 : 0 }}>
+          <GlyphLottery
+            ref={glyph}
+            as="h1"
+            text="MINEHOUSE"
+            trigger="manual"
+            direction="center"
+            fontSize={card === 1 ? "150px" : "120px"}
+            fontWeight={700}
+            letterSpacing="-0.04em"
+            lineHeight={1}
+            align="center"
+            color="#fafafa"
+            accentColor="#a1a1aa"
+            duration={1.6}
+            stagger={0.07}
+            className="w-full font-sans"
+          />
+        </div>
+        {card === 2 && (
+          <div style={{ marginTop: 34, width: "100%", opacity: t >= 1.6 ? 1 : 0 }}>
+            <CipherReveal
+              ref={cipher}
+              text="play.minehouse.pro"
+              trigger="manual"
+              fontSize="54px"
+              fontWeight={500}
+              letterSpacing="-0.01em"
+              align="center"
+              color="#d4d4d8"
+              scrambleColor="#71717a"
+              duration={1.4}
+              className="w-full font-mono"
+            />
+          </div>
+        )}
+      </div>
+      <div style={{ position: "absolute", inset: 0, background: "#000", opacity: fadeOut, pointerEvents: "none" }} />
+    </div>
+  )
+}

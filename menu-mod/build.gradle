@@ -24,6 +24,10 @@ dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// Pure-Java H.264 decoder for the intro video (BSD-2-Clause), bundled inside the jar.
+	implementation "org.jcodec:jcodec:0.2.5"
+	include "org.jcodec:jcodec:0.2.5"
 }
 
 processResources {
