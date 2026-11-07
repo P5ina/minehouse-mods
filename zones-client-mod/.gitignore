@@ -1,0 +1,10 @@
+.gradle/
+build/
+run/
+run-selftest/
+out/
+.idea/
+*.iml
+logs/
+run-demo/
+selftest.log

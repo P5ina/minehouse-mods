@@ -1,4 +1,5 @@
 menu-mod
 anvil-client-mod
 events-editor-mod
+zones-client-mod
 trailer-mod
