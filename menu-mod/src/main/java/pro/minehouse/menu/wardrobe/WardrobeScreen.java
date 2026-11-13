@@ -8,6 +8,7 @@ import java.util.Map;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -118,6 +119,34 @@ public final class WardrobeScreen extends Screen {
 		y1 = y0 + h;
 	}
 
+	/** The HUD is hidden while you look at yourself; put back as it was. */
+	private Boolean hudWasHidden;
+
+	@Override
+	public void added() {
+		super.added();
+		hudWasHidden = minecraft.gui.hud.isHidden();
+		if (!hudWasHidden) {
+			minecraft.gui.hud.toggle();
+		}
+	}
+
+	@Override
+	public void removed() {
+		if (hudWasHidden != null && !hudWasHidden && minecraft.gui.hud.isHidden()) {
+			minecraft.gui.hud.toggle();
+		}
+		super.removed();
+	}
+
+	Map<String, String> trying() {
+		return trying;
+	}
+
+	float previewYaw() {
+		return previewYaw;
+	}
+
 	@Override
 	public boolean isPauseScreen() {
 		return false;
@@ -135,18 +164,74 @@ public final class WardrobeScreen extends Screen {
 		return out;
 	}
 
+	/** The item for a cosmetic, in its colour: the one being tried in the open wardrobe, else the player's. */
 	static ItemStack stack(String id) {
 		ItemStack stack = new ItemStack(Items.PAPER);
 		stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(WardrobeNet.NS, id));
+		Integer rgb = colorOf(id);
+		if (rgb != null) {
+			stack.set(DataComponents.DYED_COLOR, new net.minecraft.world.item.component.DyedItemColor(rgb));
+		}
 		return stack;
 	}
 
+	static Integer colorOf(String id) {
+		if (Minecraft.getInstance().gui.screen() instanceof WardrobeScreen screen && screen.tint.containsKey(id)) {
+			return screen.tint.get(id);
+		}
+		WardrobeNet.State st = WardrobeNet.state;
+		WardrobeNet.Item item = st == null ? null : st.item(id);
+		return item == null ? null : item.color();
+	}
+
 	private ItemStackRenderState model(String id) {
-		return models.computeIfAbsent(id, k -> {
+		Integer rgb = colorOf(id);
+		return models.computeIfAbsent(id + "#" + rgb, k -> {
 			ItemStackRenderState out = new ItemStackRenderState();
-			minecraft.getItemModelResolver().updateForTopItem(out, stack(k), ItemDisplayContext.HEAD, minecraft.level, null, 0);
+			minecraft.getItemModelResolver().updateForTopItem(out, stack(id), ItemDisplayContext.HEAD, minecraft.level, null, 0);
 			return out;
 		});
+	}
+
+	// ------------------------------------------------------------------ colours
+
+	/** Default colour first, then the 16 dyes. */
+	private static final int[] DYES;
+	static {
+		net.minecraft.world.item.DyeColor[] all = net.minecraft.world.item.DyeColor.values();
+		DYES = new int[all.length];
+		for (int i = 0; i < all.length; i++) {
+			DYES[i] = all[i].getTextureDiffuseColor() & 0xFFFFFF;
+		}
+	}
+	private static final int SWATCH = 14;
+	private static final int SWATCH_GAP = 4;
+	private static final int SWATCH_COLS = 6;
+
+	/** id → colour being tried on (sent to the server at once if the player owns it). */
+	private final Map<String, Integer> tint = new HashMap<>();
+	/** Where the colour swatches start; set while drawing the info panel. */
+	private int swatchY = -1;
+
+	private int swatchCount() {
+		return DYES.length + 1;
+	}
+
+	private int swatchColor(WardrobeNet.Item item, int i) {
+		return i == 0 ? item.defaultColor() : DYES[i - 1];
+	}
+
+	private Button swatch(int i) {
+		int sx = x1 - INFO_W + 10 + (i % SWATCH_COLS) * (SWATCH + SWATCH_GAP);
+		int sy = swatchY + (i / SWATCH_COLS) * (SWATCH + SWATCH_GAP);
+		return new Button(sx, sy, sx + SWATCH, sy + SWATCH, swatchY >= 0);
+	}
+
+	private static final String[] DYE_NAMES = {"Белый", "Оранжевый", "Сиреневый", "Голубой", "Жёлтый", "Лаймовый", "Розовый",
+			"Серый", "Светло-серый", "Бирюзовый", "Фиолетовый", "Синий", "Коричневый", "Зелёный", "Красный", "Чёрный"};
+
+	private static String dyeName(int i) {
+		return i < DYE_NAMES.length ? DYE_NAMES[i] : "";
 	}
 
 	private boolean worn(WardrobeNet.Item item) {
@@ -266,15 +351,15 @@ public final class WardrobeScreen extends Screen {
 
 	@Override
 	public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-		g.fill(0, 0, width, height, SHADE);
+		// No shade: the player stands in the world behind the window, the camera in front of them.
 	}
 
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
 		super.extractRenderState(g, mouseX, mouseY, a);
 
-		g.fill(x0, y0, x1, y1, BG);
-		g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, LINE);
+		g.fill(x0, y0, x0 + LIST_W, y1, BG);
+		g.fill(x1 - INFO_W, y0, x1, y1, BG);
 
 		list(g, mouseX, mouseY, a);
 		stage(g, mouseX, mouseY);
@@ -334,21 +419,6 @@ public final class WardrobeScreen extends Screen {
 		int sx1 = stageX1();
 		int cx = (sx0 + sx1) / 2;
 		int cy = (y0 + y1) / 2 + 10;
-		// A soft round floor behind the player (a stepped disc, the GUI has no circles).
-		int r = Math.min((sx1 - sx0) / 2 - 8, (y1 - y0) / 2 - 30);
-		for (int dy = -r; dy <= r; dy += 2) {
-			int half = (int) Math.sqrt((double) r * r - (double) dy * dy);
-			g.fill(cx - half, cy + dy, cx + half, cy + dy + 2, STAGE);
-		}
-
-		if (minecraft.player != null) {
-			EntityRenderState player = playerState();
-			ItemStackRenderState back = trying.containsKey("backpack") ? model(trying.get("backpack")) : null;
-			int size = Math.min((y1 - y0) * 30 / 100, 80);
-			int top = wideStage() ? y0 + 24 : y0 + 32;
-			g.guiRenderState.addPicturesInPictureState(new WardrobePreview.State(player, 180 + previewYaw, back, 0,
-					cx - 60, top, cx + 60, y1 - 26, size, g.scissorStack.peek()));
-		}
 
 		boolean wide = wideStage();
 		for (Slot s : Slot.values()) {
@@ -378,7 +448,7 @@ public final class WardrobeScreen extends Screen {
 			}
 		}
 
-		g.centeredText(font, "Тяни, чтобы повернуть", cx, y1 - 16, DIM);
+		g.centeredText(font, "Тяни, чтобы повернуться", cx, y1 - 16, DIM);
 	}
 
 	private void dashed(GuiGraphicsExtractor g, Button b, int color) {
@@ -415,7 +485,28 @@ public final class WardrobeScreen extends Screen {
 			}
 			String status = worn(item) ? "Надето" : (item.owned() ? "Есть в гардеробе" : item.price() + " MX");
 			g.text(font, status, ix0 + 10, ly + 4, worn(item) ? ACCENT : (item.owned() ? GREEN : MUTED), false);
+			swatchY = -1;
+			if (item.dyeable()) {
+				g.text(font, "ЦВЕТ", ix0 + 10, ly + 20, MUTED, false);
+				swatchY = ly + 32;
+				int current = colorOf(item.id()) == null ? item.defaultColor() : colorOf(item.id());
+				for (int i = 0; i < swatchCount(); i++) {
+					Button b = swatch(i);
+					int rgb = swatchColor(item, i);
+					boolean on = rgb == current;
+					boolean hover = b.over(mouseX, mouseY);
+					g.fill(b.x0() - 1, b.y0() - 1, b.x1() + 1, b.y1() + 1, on ? ACCENT : (hover ? TEXT : LINE));
+					g.fill(b.x0(), b.y0(), b.x1(), b.y1(), 0xFF000000 | rgb);
+					if (i == 0) {
+						g.centeredText(font, "↺", (b.x0() + b.x1()) / 2, b.y0() + 3, 0xFFFFFFFF);
+					}
+					if (hover) {
+						g.setTooltipForNextFrame(font, Component.literal(i == 0 ? "Как было" : dyeName(i - 1)), mouseX, mouseY);
+					}
+				}
+			}
 		} else {
+			swatchY = -1;
 			g.text(font, "Выбери предмет слева,", ix0 + 10, ty + 14, DIM, false);
 			g.text(font, "чтобы примерить", ix0 + 10, ty + 25, DIM, false);
 		}
@@ -495,6 +586,21 @@ public final class WardrobeScreen extends Screen {
 		double my = event.y();
 		if (event.button() != com.mojang.blaze3d.platform.InputConstants.MOUSE_BUTTON_LEFT) {
 			return super.mouseClicked(event, doubleClick);
+		}
+
+		// Colours.
+		WardrobeNet.Item sel = selectedItem();
+		if (sel != null && sel.dyeable() && swatchY >= 0) {
+			for (int i = 0; i < swatchCount(); i++) {
+				if (swatch(i).over(mx, my)) {
+					int rgb = swatchColor(sel, i);
+					tint.put(sel.id(), rgb);
+					if (sel.owned()) {
+						WardrobeNet.dye(sel.id(), rgb);
+					}
+					return true;
+				}
+			}
 		}
 
 		// Slots.

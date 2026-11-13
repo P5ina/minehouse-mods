@@ -92,6 +92,14 @@ public final class WardrobeSelf {
 			return;
 		}
 		Map<String, String> worn = net.worn();
+		if (mc.gui.screen() instanceof WardrobeScreen screen) {
+			// In the fitting room: what you try on, turned by dragging, standing still.
+			worn = screen.trying();
+			state.bodyRot = avatar.getYRot() + screen.previewYaw();
+			state.yRot = 0;
+			state.xRot = 0;
+			state.walkAnimationSpeed = 0;
+		}
 		String hat = worn.get("hat");
 		if (hat != null) {
 			ItemStack stack = WardrobeScreen.stack(hat);

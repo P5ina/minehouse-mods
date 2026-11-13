@@ -48,7 +48,11 @@ public final class WardrobeNet {
 		}
 	}
 
-	public record Item(String id, String slot, String name, int price, boolean owned) {
+	/** color: what the player dyed it (or the default), null if it can't be dyed. */
+	public record Item(String id, String slot, String name, int price, boolean owned, Integer color, Integer defaultColor) {
+		boolean dyeable() {
+			return color != null;
+		}
 	}
 
 	public record State(int coins, String store, List<Item> items, Map<String, String> worn) {
@@ -79,6 +83,17 @@ public final class WardrobeNet {
 		return ClientPlayNetworking.canSend(ActionPayload.TYPE);
 	}
 
+	static void dye(String id, int rgb) {
+		if (!available()) {
+			return;
+		}
+		JsonObject o = new JsonObject();
+		o.addProperty("action", "dye");
+		o.addProperty("id", id);
+		o.addProperty("color", rgb);
+		ClientPlayNetworking.send(new ActionPayload(o.toString()));
+	}
+
 	static void send(String action, String key, String value) {
 		if (!available()) {
 			return;
@@ -103,7 +118,9 @@ public final class WardrobeNet {
 		for (JsonElement e : root.getAsJsonArray("items")) {
 			JsonObject o = e.getAsJsonObject();
 			items.add(new Item(o.get("id").getAsString(), o.get("slot").getAsString(), o.get("name").getAsString(),
-					o.get("price").getAsInt(), o.get("owned").getAsBoolean()));
+					o.get("price").getAsInt(), o.get("owned").getAsBoolean(),
+					o.has("color") ? o.get("color").getAsInt() : null,
+					o.has("defaultColor") ? o.get("defaultColor").getAsInt() : null));
 		}
 		Map<String, String> worn = new LinkedHashMap<>();
 		root.getAsJsonObject("worn").entrySet().forEach(en -> worn.put(en.getKey(), en.getValue().getAsString()));
