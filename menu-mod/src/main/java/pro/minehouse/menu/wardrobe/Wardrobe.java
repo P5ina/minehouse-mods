@@ -31,12 +31,6 @@ public final class Wardrobe {
 		WardrobeNet.init();
 		WardrobeSelf.init();
 		PictureInPictureRendererRegistry.register(context -> new WardrobePreview());
-		// The wardrobe's cards hang in the world beside the player.
-		net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents.COLLECT_SUBMITS.register(context -> {
-			if (Minecraft.getInstance().gui.screen() instanceof WardrobeScreen screen) {
-				screen.submitWorld(context.poseStack(), context.submitNodeCollector());
-			}
-		});
 		key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.minehouse.wardrobe", InputConstants.KEY_O, CATEGORY));
 		ClientLifecycleEvents.CLIENT_STARTED.register(Wardrobe::freeKeyO);
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {

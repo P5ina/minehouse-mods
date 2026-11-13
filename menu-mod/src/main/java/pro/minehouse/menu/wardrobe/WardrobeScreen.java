@@ -6,28 +6,17 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import org.joml.Vector3fc;
-
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.ConfirmLinkScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.FontDescription;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
@@ -42,8 +31,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * The wardrobe in the fitting room, «floating panels» (variant E): the camera stands in front of
  * the player in the world ({@link WardrobeCamera}) and two cards hang in the air beside them, in the
- * site's style (shadcn/ui zinc, Geist). The cards are real surfaces in the world, turned towards the
- * camera at an angle (drawn in {@link #submitWorld}); the mouse hits them with a ray from the camera. Left: the slot tabs and the cosmetics; right: the picked
+ * site's colours (shadcn/ui zinc) with the Minecraft font. Left: the slot tabs and the cosmetics; right: the picked
  * one, its colours and what to do. Dots on the head and the back are the slots themselves (click
  * one), a dashed line runs from the right card to the slot being dressed. Drag anywhere else to turn
  * round.
@@ -65,8 +53,6 @@ public final class WardrobeScreen extends Screen {
 	private static final int GREEN = 0xFF4ADE80;
 	private static final int RED = 0xFFF87171;
 
-	private static final FontDescription GEIST = new FontDescription.Resource(Identifier.fromNamespaceAndPath("minehouse-menu", "geist"));
-	private static final FontDescription GEIST_BOLD = new FontDescription.Resource(Identifier.fromNamespaceAndPath("minehouse-menu", "geist_bold"));
 
 	private static final int PAD = 8;
 	private static final int LEFT_W = 144;
@@ -258,124 +244,22 @@ public final class WardrobeScreen extends Screen {
 	// ------------------------------------------------------------------ text
 
 	private static MutableComponent txt(String s) {
-		return Component.literal(s).withStyle(st -> st.withFont(GEIST));
+		return Component.literal(s);
 	}
 
 	private static MutableComponent bold(String s) {
-		return Component.literal(s).withStyle(st -> st.withFont(GEIST_BOLD));
+		return Component.literal(s).withStyle(st -> st.withBold(true));
 	}
 
-	private void text(Ink g, Component c, int x, int y, int color) {
-		g.text(c.getVisualOrderText(), x, y, color);
+	private void text(GuiGraphicsExtractor g, Component c, int x, int y, int color) {
+		g.text(font, c, x, y, color, false);
 	}
 
-	private void centered(Ink g, Component c, int cx, int y, int color) {
-		g.text(c.getVisualOrderText(), cx - font.width(c) / 2, y, color);
+	private void centered(GuiGraphicsExtractor g, Component c, int cx, int y, int color) {
+		g.text(font, c, cx - font.width(c) / 2, y, color, false);
 	}
 
 	// ------------------------------------------------------------------ shapes
-
-	/** Where a card draws: panel pixels, x right and y down, like the GUI. */
-	private interface Ink {
-		void fill(int x0, int y0, int x1, int y1, int color);
-
-		void text(FormattedCharSequence text, int x, int y, int color);
-
-		/** A cosmetic standing on the card, its middle at (x, y), about {@code size} pixels big. */
-		void item(String id, int x, int y, int size, float spin);
-	}
-
-	/** The plain screen (the hints along the bottom). */
-	private final class GuiInk implements Ink {
-		final GuiGraphicsExtractor g;
-
-		GuiInk(GuiGraphicsExtractor g) {
-			this.g = g;
-		}
-
-		@Override
-		public void fill(int x0, int y0, int x1, int y1, int color) {
-			g.fill(x0, y0, x1, y1, color);
-		}
-
-		@Override
-		public void text(FormattedCharSequence text, int x, int y, int color) {
-			g.text(font, text, x, y, color, false);
-		}
-
-		@Override
-		public void item(String id, int x, int y, int size, float spin) {
-		}
-	}
-
-	/** A card in the world: each thing drawn a hair nearer the camera than the one before. */
-	private final class WorldInk implements Ink {
-		final PoseStack pose;
-		final SubmitNodeCollector out;
-		float z;
-
-		WorldInk(PoseStack pose, SubmitNodeCollector out) {
-			this.pose = pose;
-			this.out = out;
-		}
-
-		private float next() {
-			z += 0.04f;
-			return z;
-		}
-
-		@Override
-		public void fill(int x0, int y0, int x1, int y1, int color) {
-			if ((color >>> 24) == 0 || x1 <= x0 || y1 <= y0) {
-				return;
-			}
-			float d = next();
-			out.submitCustomGeometry(pose, RenderTypes.debugQuads(), (p, vc) -> {
-				vc.addVertex(p, x0, y0, d).setColor(color);
-				vc.addVertex(p, x0, y1, d).setColor(color);
-				vc.addVertex(p, x1, y1, d).setColor(color);
-				vc.addVertex(p, x1, y0, d).setColor(color);
-			});
-		}
-
-		@Override
-		public void text(FormattedCharSequence text, int x, int y, int color) {
-			pose.pushPose();
-			pose.translate(0, 0, next());
-			out.submitText(pose, x, y, text, false, Font.DisplayMode.POLYGON_OFFSET, LightCoordsUtil.FULL_BRIGHT, color, 0, 0);
-			pose.popPose();
-		}
-
-		@Override
-		public void item(String id, int x, int y, int size, float spin) {
-			pose.pushPose();
-			pose.translate(x, y, next() + size * 0.3f);
-			// Centred and fitted like the old previews (WardrobePreview).
-			ItemStackRenderState model = model(id);
-			net.minecraft.world.phys.AABB box = model.getModelBoundingBox();
-			double big = Math.max(box.getXsize(), Math.max(box.getYsize(), box.getZsize()));
-			float fit = big <= 0 ? 1 : (float) (1.0 / big);
-			pose.scale(size, -size, size);
-			pose.rotateDegrees(Axis.XP, 20);
-			pose.rotateDegrees(Axis.YP, spin);
-			pose.scale(fit, fit, fit);
-			pose.translate(-box.getCenter().x, -box.getCenter().y, -box.getCenter().z);
-			model.submit(pose, out, LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, 0);
-			pose.popPose();
-		}
-	}
-
-	/** A card's place in the world: its top left corner and its x (right) and y (down) directions. */
-	private record Frame(Vec3 origin, Vec3 u, Vec3 v, Vec3 normal, Quaternionf rotation) {
-		Vec3 at(double x, double y) {
-			return origin.add(u.scale(x * SCALE)).add(v.scale(y * SCALE));
-		}
-	}
-
-	/** Blocks per card pixel. */
-	private static final float SCALE = 1 / 100f;
-	/** How far the cards turn in towards the player, degrees. */
-	private static final float TILT = 22;
 
 	private record Box(int x0, int y0, int x1, int y1) {
 		boolean over(double mx, double my) {
@@ -388,7 +272,7 @@ public final class WardrobeScreen extends Screen {
 	}
 
 	/** A card with 3 px rounded corners: background and a 1 px border, without overlapping (the background is see-through). */
-	private static void card(Ink g, Box b, int bg, int border) {
+	private static void card(GuiGraphicsExtractor g, Box b, int bg, int border) {
 		int x0 = b.x0, y0 = b.y0, x1 = b.x1, y1 = b.y1;
 		g.fill(x0 + 3, y0 + 1, x1 - 3, y0 + 2, bg);
 		g.fill(x0 + 2, y0 + 2, x1 - 2, y0 + 3, bg);
@@ -460,74 +344,26 @@ public final class WardrobeScreen extends Screen {
 		return new int[] {(int) Math.round(width / 2.0 + x / z * k), (int) Math.round(height / 2.0 - y / z * k)};
 	}
 
-	private Frame leftFrame;
-	private Frame rightFrame;
-	/** The mouse on each card, in card pixels (far away when it misses). */
-	private double lmx = -1e4;
-	private double lmy = -1e4;
-	private double rmx = -1e4;
-	private double rmy = -1e4;
-	private int mouseX;
-	private int mouseY;
-	private float partial;
-	private Component tooltip;
-
-	private static Vec3 vec(Vector3fc v) {
-		return new Vec3(v.x(), v.y(), v.z());
-	}
-
-	private Frame frame(Vec3 center, int w, int h, float tilt, Camera cam) {
-		Quaternionf q = new Quaternionf(cam.rotation()).rotateY((float) Math.toRadians(tilt));
-		Vec3 u = vec(q.transform(new Vector3f(1, 0, 0)));
-		Vec3 v = vec(q.transform(new Vector3f(0, -1, 0)));
-		Vec3 n = vec(q.transform(new Vector3f(0, 0, 1)));
-		Vec3 origin = center.subtract(u.scale(w * SCALE / 2)).subtract(v.scale(h * SCALE / 2));
-		return new Frame(origin, u, v, n, q);
-	}
-
-	/** Where the mouse ray hits a card, in its pixels. */
-	private double[] onCard(Frame f, double mx, double my) {
-		if (f == null) {
-			return new double[] {-1e4, -1e4};
-		}
-		Camera cam = minecraft.gameRenderer.mainCamera();
-		double tan = Math.tan(Math.toRadians(cam.getFov()) / 2);
-		double nx = mx / width * 2 - 1;
-		double ny = 1 - my / height * 2;
-		Vec3 dir = vec(cam.forwardVector())
-				.add(vec(cam.leftVector()).scale(-nx * tan * width / height))
-				.add(vec(cam.upVector()).scale(ny * tan));
-		double dn = dir.dot(f.normal());
-		if (Math.abs(dn) < 1e-6) {
-			return new double[] {-1e4, -1e4};
-		}
-		double t = f.origin().subtract(cam.position()).dot(f.normal()) / dn;
-		if (t <= 0) {
-			return new double[] {-1e4, -1e4};
-		}
-		Vec3 hit = cam.position().add(dir.scale(t)).subtract(f.origin());
-		return new double[] {hit.dot(f.u()) / SCALE, hit.dot(f.v()) / SCALE};
-	}
-
-	/** Lay the cards out in the world beside the player and find the slot points. */
+	/** Lay the cards out beside the player and find the slot points on them. */
 	private void layout(float partial) {
 		int[] center = {width / 2, height / 2};
 		Vec3 feet = minecraft.player.getPosition(partial);
 		Camera cam = minecraft.gameRenderer.mainCamera();
 		Vector3fc l = cam.leftVector();
 		Vec3 side = new Vec3(l.x(), 0, l.z()).normalize();
-		Vector3fc f = cam.forwardVector();
-		Vec3 toCam = new Vec3(-f.x(), 0, -f.z()).normalize();
 
 		double bodyYaw = Math.toRadians(minecraft.player.getYRot() + previewYaw);
 		Vec3 front = new Vec3(-Math.sin(bodyYaw), 0, Math.cos(bodyYaw));
 		int[] head = project(feet.add(0, 1.78, 0));
+		Vec3 toCam = cam.position().subtract(feet);
 		Vec3 backAt = feet.add(0, 1.12, 0).subtract(front.scale(0.28));
-		if (front.dot(toCam) > 0.3) {
+		if (front.dot(new Vec3(toCam.x, 0, toCam.z).normalize()) > 0.3) {
 			// Facing the camera: the back is behind the body, show its dot at the shoulder.
 			backAt = feet.add(0, 1.3, 0).subtract(front.scale(0.2)).subtract(side.scale(0.42));
 		}
 		int[] back = project(backAt);
+		int[] leftAt = project(feet.add(0, 1.05, 0).add(side.scale(1.15)));
+		int[] rightAt = project(feet.add(0, 1.05, 0).subtract(side.scale(1.15)));
 		if (head == null) {
 			head = new int[] {center[0], center[1] - 60};
 		}
@@ -538,53 +374,26 @@ public final class WardrobeScreen extends Screen {
 		headY = head[1];
 		backX = back[0];
 		backY = back[1];
+		// The back is hidden behind the body when facing the camera.
 		backVisible = true;
 
-		int leftH = TABS_H + PAD * 3 + 2 * (TILE_H + GAP) + 14 + rowsExtra();
+		int leftH = Math.min(height - 48, TABS_H + PAD * 3 + 2 * (TILE_H + GAP) + 14 + rowsExtra());
 		int rightH = rightHeight();
-		left = new Box(0, 0, LEFT_W, leftH);
-		right = new Box(0, 0, RIGHT_W, rightH);
-		double cos = Math.cos(Math.toRadians(TILT));
-		Vec3 base = feet.add(0, 1.0, 0).add(toCam.scale(0.3));
-		leftFrame = frame(base.add(side.scale(0.5 + LEFT_W * SCALE / 2 * cos)), LEFT_W, leftH, TILT, cam);
-		rightFrame = frame(base.subtract(side.scale(0.5 + RIGHT_W * SCALE / 2 * cos)), RIGHT_W, rightH, -TILT, cam);
-		double[] lm = onCard(leftFrame, mouseX, mouseY);
-		double[] rm = onCard(rightFrame, mouseX, mouseY);
-		lmx = lm[0];
-		lmy = lm[1];
-		rmx = rm[0];
-		rmy = rm[1];
-	}
-
-	/** Draws the cards into the world; called while the level collects what to draw. */
-	void submitWorld(PoseStack pose, SubmitNodeCollector out) {
-		if (minecraft.player == null) {
-			return;
-		}
-		layout(partial);
-		tooltip = null;
-		Vec3 cam = minecraft.gameRenderer.mainCamera().position();
-		for (int i = 0; i < 2; i++) {
-			Frame f = i == 0 ? leftFrame : rightFrame;
-			pose.pushPose();
-			Vec3 o = f.origin().subtract(cam);
-			pose.translate(o.x, o.y, o.z);
-			pose.rotate(f.rotation());
-			pose.scale(SCALE, -SCALE, SCALE);
-			WorldInk ink = new WorldInk(pose, out);
-			if (i == 0) {
-				leftCard(ink, (int) Math.floor(lmx), (int) Math.floor(lmy), partial);
-			} else {
-				rightCard(ink, (int) Math.floor(rmx), (int) Math.floor(rmy));
-			}
-			pose.popPose();
-		}
+		int lx = leftAt == null ? center[0] - 70 - LEFT_W : leftAt[0] - LEFT_W;
+		int rx = rightAt == null ? center[0] + 70 : rightAt[0];
+		// Keep them on the screen and off the player.
+		lx = Mth.clamp(lx, 8, Math.max(8, center[0] - 46 - LEFT_W));
+		rx = Mth.clamp(rx, Math.min(width - 8 - RIGHT_W, center[0] + 46), width - 8 - RIGHT_W);
+		int ly = Mth.clamp((leftAt == null ? center[1] : leftAt[1]) - leftH / 2, 8, height - 40 - leftH);
+		int ry = Mth.clamp((rightAt == null ? center[1] : rightAt[1]) - rightH / 2 + 12, 8, height - 40 - rightH);
+		left = new Box(lx, ly, lx + LEFT_W, ly + leftH);
+		right = new Box(rx, ry, rx + RIGHT_W, ry + rightH);
 	}
 
 	/** A third row of tiles when there is room for it. */
 	private int rowsExtra() {
 		int rows = (shown().size() + COLS - 1) / COLS;
-		return rows > 2 ? TILE_H + GAP : 0;
+		return rows > 2 && height > 260 ? TILE_H + GAP : 0;
 	}
 
 	/** Must match {@link #rightCard}: header, content, buttons, a rule, the balance. */
@@ -617,27 +426,18 @@ public final class WardrobeScreen extends Screen {
 		if (minecraft.player == null) {
 			return;
 		}
-		this.mouseX = mouseX;
-		this.mouseY = mouseY;
-		this.partial = a;
-		if (rightFrame == null) {
-			layout(a);
-		}
+		layout(a);
 		slots(g, mouseX, mouseY);
-		bottomBar(new GuiInk(g), mouseX, mouseY);
-		if (tooltip != null) {
-			g.setTooltipForNextFrame(font, tooltip, mouseX, mouseY);
-		}
+		leftCard(g, mouseX, mouseY, a);
+		rightCard(g, mouseX, mouseY);
+		bottomBar(g, mouseX, mouseY);
 	}
 
 	/** The dots on the head and the back, and the line from the right card to the slot being dressed. */
 	private void slots(GuiGraphicsExtractor g, int mouseX, int mouseY) {
 		int sx = slot == Slot.BACKPACK ? backX : headX;
 		int sy = slot == Slot.BACKPACK ? backY : headY;
-		int[] from = rightFrame == null ? null : project(rightFrame.at(0, 14));
-		if (from != null) {
-			dashedLine(g, from[0], from[1], sx, sy, (ACCENT & 0xFFFFFF) | 0xC0000000);
-		}
+		dashedLine(g, right.x0, right.y0 + 14, sx, sy, (ACCENT & 0xFFFFFF) | 0xC0000000);
 		boolean hoverHead = Math.abs(mouseX - headX) <= 6 && Math.abs(mouseY - headY) <= 6;
 		boolean hoverBack = Math.abs(mouseX - backX) <= 6 && Math.abs(mouseY - backY) <= 6;
 		dot(g, headX, headY, slot == Slot.HAT ? ACCENT : (hoverHead ? FG : 0xFFD4D4D8), slot == Slot.HAT);
@@ -678,7 +478,7 @@ public final class WardrobeScreen extends Screen {
 		return Math.max(0, rows * (TILE_H + GAP) - GAP - (gridY1() - gridY0()));
 	}
 
-	private void leftCard(Ink g, int mouseX, int mouseY, float a) {
+	private void leftCard(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
 		card(g, left, CARD, BORDER);
 		// Tabs, like shadcn's: a muted track with the active one raised.
 		card(g, new Box(left.x0 + PAD, left.y0 + PAD, left.x1 - PAD, left.y0 + PAD + TABS_H), MUTED_BG, 0);
@@ -693,6 +493,7 @@ public final class WardrobeScreen extends Screen {
 		}
 
 		List<WardrobeNet.Item> items = shown();
+		g.enableScissor(left.x0 + 1, gridY0() - 1, left.x1 - 1, gridY1());
 		if (items.isEmpty()) {
 			centered(g, txt(slot.id == null ? "Скоро" : "Пока пусто"), (left.x0 + left.x1) / 2, gridY0() + 30, MUTED);
 		}
@@ -701,7 +502,7 @@ public final class WardrobeScreen extends Screen {
 			WardrobeNet.Item item = items.get(i);
 			int x = tileX(i);
 			int y = tileY(i);
-			if (y < gridY0() || y + TILE_H > gridY1()) {
+			if (y > gridY1() || y + TILE_H < gridY0()) {
 				continue;
 			}
 			Box b = new Box(x, y, x + TILE_W, y + TILE_H);
@@ -709,7 +510,8 @@ public final class WardrobeScreen extends Screen {
 			boolean sel = item.id().equals(selected);
 			card(g, b, hover ? HOVER_BG : MUTED_BG, sel ? ACCENT : (worn(item) ? 0xFF3F3F46 : BORDER));
 			float spin = hover || sel ? time * 4 : 35;
-			g.item(item.id(), x + TILE_W / 2, y + (TILE_H - 10) / 2 + 1, 23, spin);
+			g.guiRenderState.addPicturesInPictureState(new WardrobePreview.State(null, 0, model(item.id()), spin,
+					x + 3, y + 2, x + TILE_W - 3, y + TILE_H - 12, 28, g.scissorStack.peek()));
 			String tag;
 			int color;
 			if (worn(item)) {
@@ -724,9 +526,10 @@ public final class WardrobeScreen extends Screen {
 			}
 			centered(g, txt(tag), x + TILE_W / 2, y + TILE_H - 10, color);
 			if (hover) {
-				tooltip = txt(item.name());
+				g.setTooltipForNextFrame(font, txt(item.name()), mouseX, mouseY);
 			}
 		}
+		g.disableScissor();
 		String hint = maxScroll() > 0 ? "Колесо мыши: ещё" : "Двойной клик: надеть";
 		text(g, txt(hint), left.x0 + PAD, left.y1 - PAD - 8, FAINT);
 	}
@@ -759,7 +562,7 @@ public final class WardrobeScreen extends Screen {
 		return item != null && (item.owned() || state.coins() >= item.price());
 	}
 
-	private void rightCard(Ink g, int mouseX, int mouseY) {
+	private void rightCard(GuiGraphicsExtractor g, int mouseX, int mouseY) {
 		card(g, right, CARD, BORDER);
 		WardrobeNet.Item item = selectedItem();
 		int x = right.x0 + PAD;
@@ -781,7 +584,7 @@ public final class WardrobeScreen extends Screen {
 			y += 40;
 		} else {
 			for (FormattedCharSequence line : font.split(bold(item.name()), RIGHT_W - PAD * 2)) {
-				g.text(line, x, y, FG);
+				g.text(font, line, x, y, FG, false);
 				y += 11;
 			}
 			y += 4;
@@ -804,7 +607,7 @@ public final class WardrobeScreen extends Screen {
 						centered(g, Component.literal("↺"), (s.x0 + s.x1) / 2 + 1, s.y0 + 2, (rgb & 0xFFFFFF) > 0x808080 ? 0xFF18181B : 0xFFFFFFFF);
 					}
 					if (hover) {
-						tooltip = txt(i == 0 ? "Как было" : DYE_NAMES[i - 1]);
+						g.setTooltipForNextFrame(font, txt(i == 0 ? "Как было" : DYE_NAMES[i - 1]), mouseX, mouseY);
 					}
 				}
 				y += swatchRows() * (SWATCH + SWATCH_GAP);
@@ -846,7 +649,7 @@ public final class WardrobeScreen extends Screen {
 	}
 
 	/** The hints along the bottom, like keyboard shortcuts on the site. */
-	private void bottomBar(Ink g, int mouseX, int mouseY) {
+	private void bottomBar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
 		String[][] parts = {{"ЛКМ", "выбрать"}, {"тяни", "повернуться"}, {"Esc", "выйти"}};
 		int w = 12;
 		for (String[] p : parts) {
@@ -909,11 +712,7 @@ public final class WardrobeScreen extends Screen {
 			return true;
 		}
 
-		double[] lm = onCard(leftFrame, mx, my);
-		double[] rm = onCard(rightFrame, mx, my);
-		if (left.over(lm[0], lm[1])) {
-			mx = lm[0];
-			my = lm[1];
+		if (left.over(mx, my)) {
 			for (Slot s : Slot.values()) {
 				if (s.id != null && tab(s).over(mx, my)) {
 					selectSlot(s);
@@ -935,9 +734,7 @@ public final class WardrobeScreen extends Screen {
 			return true;
 		}
 
-		if (right.over(rm[0], rm[1])) {
-			mx = rm[0];
-			my = rm[1];
+		if (right.over(mx, my)) {
 			WardrobeNet.Item sel = selectedItem();
 			if (sel != null && sel.dyeable() && swatchY >= 0) {
 				for (int i = 0; i < swatchCount(); i++) {
@@ -1000,11 +797,8 @@ public final class WardrobeScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-		double[] lm = onCard(leftFrame, x, y);
-		if (left.over(lm[0], lm[1])) {
-			// Whole rows: the cards have no clipping in the world.
-			int row = TILE_H + GAP;
-			scroll = Mth.clamp(scroll - Math.signum(scrollY) * row, 0, Math.ceil(maxScroll() / (double) row) * row);
+		if (left.over(x, y)) {
+			scroll = Mth.clamp(scroll - scrollY * 20, 0, maxScroll());
 			return true;
 		}
 		return super.mouseScrolled(x, y, scrollX, scrollY);
