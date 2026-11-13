@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
- * CI check (./gradlew runSelftestClient under Xvfb): once the client has started, applies every
+ * CI check (./gradlew runSelftestClient -Pselftest=anvil under Xvfb): once the client has started, applies every
  * mixin (a missing injection point fails here, not when a player opens an anvil), checks that the
  * cost packet has a receiver and prints MINEHOUSE_ANVIL_CLIENT_OK.
  */

@@ -35,7 +35,7 @@ public final class MinehouseZonesClient implements ClientModInitializer {
 			}
 		});
 
-		if (Boolean.getBoolean("minehouse.selftest")) {
+		if ("zones".equals(System.getProperty("minehouse.selftest"))) {
 			SelfTest.register();
 		}
 		if (Boolean.getBoolean("minehouse.zones.demo")) {

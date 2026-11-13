@@ -11,9 +11,7 @@
 
 | Папка | Мод | В сборке | Что делает |
 |---|---|---|---|
-| [`menu-mod`](menu-mod) | MineHouse Menu | да | Главное меню: кнопка «Играть на MineHouse», онлайн сервера, ссылки на сайт и Discord. Автообновление сборки: сверяет файлы с `https://www.minehouse.pro/modpack/manifest.json` (по sha512), докачивает изменённые и после выхода из игры подменяет их в папке сборки. Других адресов не трогает. |
-| [`anvil-client-mod`](anvil-client-mod) | MineHouse Anvil Client | да | Показывает в окне наковальни настоящую цену вместо «Слишком дорого!». Только принимает от сервера пакет с ценой. |
-| [`events-editor-mod`](events-editor-mod) | MineHouse Events Editor | да | Редактор шоу для админов. У обычных игроков ничего не делает: сервер говорит с ним только при наличии прав. |
+| [`menu-mod`](menu-mod) | MineHouse (`minehouse-client.jar`) | да | Единственный наш клиентский мод. Главное меню: кнопка «Играть на MineHouse», онлайн сервера, ссылки на сайт и Discord. Автообновление сборки: сверяет файлы с `https://www.minehouse.pro/modpack/manifest.json` (по sha512), докачивает изменённые и после выхода из игры подменяет их в папке сборки, других адресов не трогает. Гардероб и косметика, настоящая цена в окне наковальни вместо «Слишком дорого!», границы зон спавна линиями и стенами, редактор шоу для админов (у обычных игроков ничего не делает). С сервером говорит только пакетами этих функций. До сборки 1.14.0 это были четыре отдельных мода: Menu, Anvil Client, Events Editor и Zones Client. |
 | [`trailer-mod`](trailer-mod) | MineHouse Trailer | нет | Снимает трейлер сервера в одиночном мире. В сборку не входит. |
 
 Лаунчер MineHouse открыт отдельно: [P5ina/minehouse-launcher](https://github.com/P5ina/minehouse-launcher).
@@ -26,9 +24,9 @@
 исходников получается один и тот же файл байт в байт.
 
 1. Посчитайте хеш jar из папки `mods` вашей сборки:
-   - Windows (PowerShell): `Get-FileHash .\minehouse-menu.jar`
-   - macOS: `shasum -a 256 minehouse-menu.jar`
-   - Linux: `sha256sum minehouse-menu.jar`
+   - Windows (PowerShell): `Get-FileHash .\minehouse-client.jar`
+   - macOS: `shasum -a 256 minehouse-client.jar`
+   - Linux: `sha256sum minehouse-client.jar`
 2. Сравните с файлом `.sha256` в релизе той же версии (версия видна в Mod Menu).
 
 Или соберите сами (нужен JDK 25):
@@ -36,7 +34,7 @@
 ```
 cd menu-mod
 ./gradlew build
-python3 ../verify.py ~/.minecraft/mods/minehouse-menu.jar build/libs/minehouse-menu-*.jar
+python3 ../verify.py ~/.minecraft/mods/minehouse-client.jar build/libs/minehouse-client-*.jar
 ```
 
 `verify.py` сравнивает хеш, а если он разный, то содержимое каждого файла внутри jar.

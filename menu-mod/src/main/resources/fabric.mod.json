@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "minehouse-menu",
+  "id": "minehouse-client",
   "version": "${version}",
-  "name": "MineHouse Menu",
-  "description": "Главное меню сборки MineHouse: логотип сервера, кнопка «Играть на MineHouse» с онлайном, ссылки на сайт и Discord.",
+  "name": "MineHouse",
+  "description": "Клиентский мод сборки MineHouse: главное меню с кнопкой «Играть на MineHouse», автообновление сборки, гардероб и косметика, настоящая цена в наковальне, границы зон спавна и редактор шоу для админов.",
   "authors": ["MineHouse"],
   "contact": {
     "homepage": "https://www.minehouse.pro"
@@ -12,12 +12,24 @@
   "icon": "assets/minehouse-menu/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": ["pro.minehouse.menu.MinehouseMenu"]
+    "client": [
+      "pro.minehouse.menu.MinehouseMenu",
+      "pro.minehouse.anvilclient.MinehouseAnvilClient",
+      "pro.minehouse.eventseditor.MinehouseEventsEditor",
+      "pro.minehouse.zonesclient.MinehouseZonesClient"
+    ]
   },
-  "mixins": ["minehouse-menu.mixins.json"],
+  "mixins": ["minehouse-menu.mixins.json", "minehouse-anvil-client.mixins.json"],
   "depends": {
     "fabricloader": ">=0.20.1",
     "minecraft": "~26.3",
-    "java": ">=25"
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "breaks": {
+    "minehouse-menu": "*",
+    "minehouse-anvil-client": "*",
+    "minehouse-events-editor": "*",
+    "minehouse-zones-client": "*"
   }
 }

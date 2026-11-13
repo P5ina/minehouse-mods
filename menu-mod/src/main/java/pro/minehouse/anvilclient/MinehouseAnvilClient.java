@@ -20,7 +20,7 @@ public final class MinehouseAnvilClient implements ClientModInitializer {
 				(payload, context) -> AnvilCost.set(payload.containerId(), payload.cost()));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> AnvilCost.clear());
 
-		if (Boolean.getBoolean("minehouse.selftest")) {
+		if ("anvil".equals(System.getProperty("minehouse.selftest"))) {
 			SelfTest.register();
 		}
 	}

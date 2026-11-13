@@ -6,16 +6,37 @@ repositories {
 	mavenCentral()
 }
 
+// Google's mirror of Maven Central goes first, ahead of the Central that Loom adds itself
+// (Central sometimes answers CI with 404 for test jars, and Gradle caches the miss).
+def centralMirror = repositories.maven {
+	name = "MavenCentralMirror"
+	url = "https://maven-central.storage-download.googleapis.com/maven2/"
+}
+repositories.remove(centralMirror)
+repositories.addFirst(centralMirror)
+
 loom {
 	runs {
-		// Opens the title screen, saves a screenshot and exits. Used by CI under Xvfb:
-		// xvfb-run ./gradlew runSelftestClient
+		// Self-tests for CI under Xvfb, one part of the mod per run:
+		//   xvfb-run ./gradlew runSelftestClient                    title screen screenshot (menu)
+		//   xvfb-run ./gradlew runSelftestClient -Pselftest=anvil   anvil mixin + cost packet
+		//   xvfb-run ./gradlew runSelftestClient -Pselftest=editor  show editor panel screenshot
+		//   xvfb-run ./gradlew runSelftestClient -Pselftest=zones   zone packet, codec, gizmos
 		selftestClient {
 			client()
 			name = "Self-test client"
 			runDir = project.findProperty("selftestDir") ?: "run-selftest"
-			vmArg "-Dminehouse.selftest=true"
+			vmArg "-Dminehouse.selftest=${project.findProperty("selftest") ?: "true"}"
 			programArgs "--username", "Steve"
+		}
+		// Joins a local server, draws made-up zones, saves run-demo/screenshots/zones-demo.png and exits.
+		// Start any 26.3 server on localhost:25565 (online-mode=false) first.
+		demoClient {
+			client()
+			name = "Demo client"
+			runDir = "run-demo"
+			vmArg "-Dminehouse.zones.demo=true"
+			programArgs "--username", "Steve", "--quickPlayMultiplayer", "localhost:25565"
 		}
 	}
 }
@@ -28,6 +49,14 @@ dependencies {
 	// Pure-Java H.264 decoder for the intro video (BSD-2-Clause), bundled inside the jar.
 	implementation "org.jcodec:jcodec:0.2.5"
 	include "org.jcodec:jcodec:0.2.5"
+
+	testImplementation platform("org.junit:junit-bom:5.13.4")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+}
+
+test {
+	useJUnitPlatform()
 }
 
 processResources {

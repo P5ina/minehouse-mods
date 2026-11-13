@@ -7,3 +7,5 @@ out/
 *.iml
 logs/
 run-updatetest/
+run-demo/
+run-selftest-*/

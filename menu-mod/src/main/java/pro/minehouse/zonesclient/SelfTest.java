@@ -12,7 +12,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * CI check (./gradlew runSelftestClient under Xvfb): once the client has started, checks the packet
+ * CI check (./gradlew runSelftestClient -Pselftest=zones under Xvfb): once the client has started, checks the packet
  * receiver, round-trips a packet through the codec, draws two made-up zones into a gizmo collector
  * and prints MINEHOUSE_ZONES_CLIENT_OK.
  */

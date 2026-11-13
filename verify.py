@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Сверяет jar из вашей папки mods с jar, собранным из этих исходников.
 
-    python3 verify.py ~/.minecraft/mods/minehouse-menu.jar menu-mod/build/libs/minehouse-menu-0.2.0.jar
+    python3 verify.py ~/.minecraft/mods/minehouse-client.jar menu-mod/build/libs/minehouse-client-1.0.0.jar
 
 Сначала сравнивает SHA-256 целиком (сборка воспроизводимая, обычно совпадает байт в байт).
 Если байты разные, сравнивает содержимое каждого файла внутри jar, без дат в архиве.

@@ -56,7 +56,7 @@ public final class Intro {
 			return null;
 		}
 		checked = true;
-		if (!MenuConfig.introEnabled || (Boolean.getBoolean("minehouse.selftest") && !Boolean.getBoolean("minehouse.introtest"))) {
+		if (!MenuConfig.introEnabled || (System.getProperty("minehouse.selftest") != null && !Boolean.getBoolean("minehouse.introtest"))) {
 			return null;
 		}
 		Meta m = meta();

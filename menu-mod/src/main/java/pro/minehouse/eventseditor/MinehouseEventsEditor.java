@@ -53,7 +53,7 @@ public final class MinehouseEventsEditor implements ClientModInitializer {
 			}
 		});
 
-		if (Boolean.getBoolean("minehouse.selftest")) {
+		if ("editor".equals(System.getProperty("minehouse.selftest"))) {
 			SelfTest.register();
 		}
 	}

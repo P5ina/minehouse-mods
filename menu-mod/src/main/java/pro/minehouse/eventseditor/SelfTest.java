@@ -9,7 +9,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Screenshot;
 
 /**
- * CI check (xvfb-run ./gradlew runSelftestClient): feeds the client a made-up editing session (the
+ * CI check (xvfb-run ./gradlew runSelftestClient -Pselftest=editor): feeds the client a made-up editing session (the
  * bundled meteor show), opens the panel, selects a cue, takes a screenshot of the editor and prints
  * MINEHOUSE_EVENTS_EDITOR_OK if everything held together.
  */
