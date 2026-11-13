@@ -12,5 +12,6 @@ public final class MinehouseMenu implements ClientModInitializer {
 	public void onInitializeClient() {
 		MenuConfig.load();
 		PackUpdater.start();
+		pro.minehouse.menu.wardrobe.Wardrobe.init();
 	}
 }
