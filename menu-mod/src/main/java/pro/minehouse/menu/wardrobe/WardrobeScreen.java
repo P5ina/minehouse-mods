@@ -25,55 +25,57 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * The wardrobe: categories on the left, the cosmetics as cards with their 3D model turning, the
- * player on the right wearing what is picked (drag to turn them round), and what to do with it
- * under the player. Clicking a card tries it on, even one you don't own yet.
+ * The wardrobe, «mannequin» layout: the player in the middle with the slots around them (head,
+ * back; more later), the cosmetics for the picked slot on the left, and the picked one with what
+ * to do with it on the right. Clicking a tile tries it on, even one you don't own yet; drag the
+ * player to turn them round.
  */
 public final class WardrobeScreen extends Screen {
 	// Colours (ARGB).
 	private static final int SHADE = 0xC0080A0E;
-	private static final int PANEL = 0xF0171A21;
-	private static final int SIDEBAR = 0xF0121419;
-	private static final int HEADER = 0xF01D212A;
-	private static final int CARD = 0xFF222733;
-	private static final int CARD_HOVER = 0xFF2A3140;
-	private static final int ACCENT = 0xFF3B82F6;
-	private static final int ACCENT_HOVER = 0xFF5B9BFF;
-	private static final int GREEN = 0xFF4ADE80;
-	private static final int GOLD = 0xFFFBBF24;
-	private static final int TEXT = 0xFFF1F5F9;
-	private static final int MUTED = 0xFF94A3B8;
-	private static final int LINE = 0xFF2A2F3A;
-	private static final int DISABLED = 0xFF3A404C;
+	private static final int BG = 0xF214121A;
+	private static final int SIDE = 0xF21B1823;
+	private static final int STAGE = 0xFF1F1B29;
+	private static final int TILE = 0xFF252130;
+	private static final int TILE_HOVER = 0xFF2E2940;
+	private static final int ACCENT = 0xFFB58CFF;
+	private static final int ACCENT_HOVER = 0xFFC9A8FF;
+	private static final int ON_ACCENT = 0xFF14121A;
+	private static final int GREEN = 0xFF6FD08C;
+	private static final int TEXT = 0xFFEEEAF5;
+	private static final int MUTED = 0xFFA59FB3;
+	private static final int DIM = 0xFF6F687E;
+	private static final int LINE = 0xFF2F2A3B;
+	private static final int BUTTON = 0xFF2A2437;
+	private static final int BUTTON_HOVER = 0xFF352E45;
+	private static final int DISABLED = 0xFF2A2533;
+	private static final int RED = 0xFFE5484D;
 
-	private static final int HEADER_H = 22;
-	private static final int SIDEBAR_W = 96;
-	private static final int PREVIEW_W = 136;
-	private static final int CARD_W = 70;
-	private static final int CARD_H = 84;
-	private static final int GAP = 6;
+	private static final int LIST_W = 148;
+	private static final int INFO_W = 124;
+	private static final int TILE_W = 40;
+	private static final int TILE_H = 50;
+	private static final int GAP = 4;
+	private static final int LIST_TOP = 34;
 
-	private enum Category {
-		FEATURED("Витрина", "★", GOLD, null),
-		HATS("Шляпы", "▲", 0xFF60A5FA, "hat"),
-		BACKPACKS("Рюкзаки", "■", 0xFFF59E0B, "backpack"),
-		OWNED("Моё", "♥", 0xFFF472B6, null);
+	/** The mannequin's slots; the ones without a server slot are shown as coming later. */
+	private enum Slot {
+		HAT("Голова", "hat"),
+		BACKPACK("Спина", "backpack"),
+		CAPE("Плащ", null),
+		PET("Питомец", null);
 
 		final String title;
-		final String icon;
-		final int color;
-		final String slot;
+		final String id;
 
-		Category(String title, String icon, int color, String slot) {
+		Slot(String title, String id) {
 			this.title = title;
-			this.icon = icon;
-			this.color = color;
-			this.slot = slot;
+			this.id = id;
 		}
 	}
 
 	private WardrobeNet.State state;
-	private Category category = Category.FEATURED;
+	private Slot slot = Slot.HAT;
 	private String selected;
 	/** Slot → what the preview wears: what is worn, plus what is being tried on. */
 	private final Map<String, String> trying = new HashMap<>();
@@ -108,7 +110,7 @@ public final class WardrobeScreen extends Screen {
 
 	@Override
 	protected void init() {
-		int w = Math.min(width - 16, 520);
+		int w = Math.min(width - 16, 560);
 		int h = Math.min(height - 16, 300);
 		x0 = (width - w) / 2;
 		y0 = (height - h) / 2;
@@ -126,19 +128,14 @@ public final class WardrobeScreen extends Screen {
 	private List<WardrobeNet.Item> shown() {
 		List<WardrobeNet.Item> out = new ArrayList<>();
 		for (WardrobeNet.Item item : state.items()) {
-			boolean fits = switch (category) {
-				case FEATURED -> true;
-				case OWNED -> item.owned();
-				default -> item.slot().equals(category.slot);
-			};
-			if (fits) {
+			if (item.slot().equals(slot.id)) {
 				out.add(item);
 			}
 		}
 		return out;
 	}
 
-	private static ItemStack stack(String id) {
+	static ItemStack stack(String id) {
 		ItemStack stack = new ItemStack(Items.PAPER);
 		stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath(WardrobeNet.NS, id));
 		return stack;
@@ -156,39 +153,44 @@ public final class WardrobeScreen extends Screen {
 		return item.id().equals(state.worn().get(item.slot()));
 	}
 
+	private String nameOf(String id) {
+		WardrobeNet.Item item = id == null ? null : state.item(id);
+		return item == null ? null : item.name();
+	}
+
 	// ------------------------------------------------------------------ layout helpers
 
-	private int gridX0() {
-		return x0 + SIDEBAR_W;
+	private int listX0() {
+		return x0 + 8;
 	}
 
-	private int gridX1() {
-		return x1 - PREVIEW_W;
-	}
-
-	private int gridY0() {
-		return y0 + HEADER_H;
+	private int listY0() {
+		return y0 + LIST_TOP;
 	}
 
 	private int columns() {
-		return Math.max(1, (gridX1() - gridX0() - GAP) / (CARD_W + GAP));
+		return Math.max(1, (LIST_W - 16 + GAP) / (TILE_W + GAP));
 	}
 
-	private int cardX(int i) {
-		int cols = columns();
-		int used = cols * CARD_W + (cols - 1) * GAP;
-		int left = gridX0() + (gridX1() - gridX0() - used) / 2;
-		return left + (i % cols) * (CARD_W + GAP);
+	private int tileX(int i) {
+		return listX0() + (i % columns()) * (TILE_W + GAP);
 	}
 
-	private int cardY(int i) {
-		return gridY0() + 18 + (i / columns()) * (CARD_H + GAP) - (int) scroll;
+	private int tileY(int i) {
+		return listY0() + (i / columns()) * (TILE_H + GAP) - (int) scroll;
 	}
 
 	private int maxScroll() {
 		int rows = (shown().size() + columns() - 1) / columns();
-		int content = 18 + rows * (CARD_H + GAP);
-		return Math.max(0, content - (y1 - gridY0()));
+		return Math.max(0, rows * (TILE_H + GAP) - (y1 - 8 - listY0()));
+	}
+
+	private int stageX0() {
+		return x0 + LIST_W;
+	}
+
+	private int stageX1() {
+		return x1 - INFO_W;
 	}
 
 	private record Button(int x0, int y0, int x1, int y1, boolean enabled) {
@@ -197,18 +199,44 @@ public final class WardrobeScreen extends Screen {
 		}
 	}
 
-	private Button actionButton() {
-		int px0 = x1 - PREVIEW_W + 10;
-		return new Button(px0, y1 - 28, x1 - 10, y1 - 10, actionEnabled());
+	/** Wide enough for the chips beside the mannequin (with the later slots on the right)? */
+	private boolean wideStage() {
+		return stageX1() - stageX0() >= 300;
+	}
+
+	/**
+	 * The slot chips: beside the mannequin when there is room (head and back on the left, the later
+	 * ones on the right), otherwise a row of the real slots along the top of the stage.
+	 */
+	private Button slotButton(Slot s) {
+		if (wideStage()) {
+			int w = 92;
+			int h = 22;
+			boolean left = s.id != null;
+			int index = s.ordinal() % 2;
+			int bx = left ? stageX0() + 8 : stageX1() - 8 - w;
+			int by = y0 + 30 + index * (h + 8);
+			return new Button(bx, by, bx + w, by + h, s.id != null);
+		}
+		if (s.id == null) {
+			return null;
+		}
+		int gap = 4;
+		int w = (stageX1() - stageX0() - 16 - gap) / 2;
+		int bx = stageX0() + 8 + s.ordinal() * (w + gap);
+		return new Button(bx, y0 + 8, bx + w, y0 + 26, true);
 	}
 
 	private Button topUpButton() {
-		return new Button(x1 - 62, y0 + 4, x1 - 6, y0 + HEADER_H - 4, true);
+		return new Button(x1 - 64, y0 + 8, x1 - 8, y0 + 22, true);
+	}
+
+	private Button actionButton() {
+		return new Button(x1 - INFO_W + 10, y1 - 50, x1 - 10, y1 - 30, actionEnabled());
 	}
 
 	private Button takeOffButton() {
-		int px0 = x1 - PREVIEW_W + 10;
-		return new Button(px0, y1 - 46, x1 - 10, y1 - 32, true);
+		return new Button(x1 - INFO_W + 10, y1 - 26, x1 - 10, y1 - 8, !state.worn().isEmpty());
 	}
 
 	private WardrobeNet.Item selectedItem() {
@@ -245,94 +273,174 @@ public final class WardrobeScreen extends Screen {
 	public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
 		super.extractRenderState(g, mouseX, mouseY, a);
 
-		g.fill(x0, y0, x1, y1, PANEL);
+		g.fill(x0, y0, x1, y1, BG);
 		g.outline(x0 - 1, y0 - 1, x1 - x0 + 2, y1 - y0 + 2, LINE);
 
-		sidebar(g, mouseX, mouseY);
-		grid(g, mouseX, mouseY, a);
-		preview(g, mouseX, mouseY, a);
+		list(g, mouseX, mouseY, a);
+		stage(g, mouseX, mouseY);
+		info(g, mouseX, mouseY);
 	}
 
-	private void sidebar(GuiGraphicsExtractor g, int mouseX, int mouseY) {
-		g.fill(x0, y0, x0 + SIDEBAR_W, y1, SIDEBAR);
-		g.fill(x0, y0, x0 + SIDEBAR_W, y0 + HEADER_H, HEADER);
-		g.text(font, Component.literal("Гардероб").withStyle(s -> s.withBold(true)), x0 + 8, y0 + 7, TEXT, false);
-		g.fill(x0, y0 + HEADER_H, x1, y0 + HEADER_H + 1, LINE);
-
-		int y = y0 + HEADER_H + 6;
-		for (Category c : Category.values()) {
-			boolean on = c == category;
-			boolean hover = mouseX >= x0 && mouseX < x0 + SIDEBAR_W && mouseY >= y && mouseY < y + 20;
-			if (on || hover) {
-				g.fill(x0, y, x0 + SIDEBAR_W, y + 20, on ? 0xFF1F2530 : 0xFF1A1E26);
-			}
-			if (on) {
-				g.fill(x0, y, x0 + 2, y + 20, c.color);
-			}
-			g.text(font, c.icon, x0 + 9, y + 6, c.color, false);
-			g.text(font, c.title, x0 + 21, y + 6, on ? TEXT : (hover ? 0xFFCBD5E1 : c.color), false);
-			y += 22;
-		}
-
-		g.text(font, "MineHouse", x0 + 8, y1 - 14, 0xFF475569, false);
-	}
-
-	private void grid(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-		int gx0 = gridX0();
-		int gx1 = gridX1();
-		g.fill(gx0, y0, gx1, y0 + HEADER_H, HEADER);
-		g.text(font, category.title, gx0 + 8, y0 + 7, TEXT, false);
-
+	private void list(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
+		g.fill(x0, y0, x0 + LIST_W, y1, SIDE);
+		g.text(font, Component.literal(slot.title).withStyle(s -> s.withBold(true)), x0 + 8, y0 + 9, TEXT, false);
 		List<WardrobeNet.Item> items = shown();
-		g.enableScissor(gx0, gridY0() + 1, gx1, y1);
-		String section = category == Category.FEATURED ? "Все предметы" : items.size() + " шт.";
-		int sw = font.width(section);
-		int cx = (gx0 + gx1) / 2;
-		int sy = gridY0() + 7 - (int) scroll;
-		g.fill(gx0 + 10, sy + 4, cx - sw / 2 - 6, sy + 5, LINE);
-		g.fill(cx + sw / 2 + 6, sy + 4, gx1 - 10, sy + 5, LINE);
-		g.centeredText(font, section, cx, sy, MUTED);
+		g.text(font, items.size() + " шт.", x0 + LIST_W - 8 - font.width(items.size() + " шт."), y0 + 9, DIM, false);
+		g.fill(x0 + 8, y0 + 24, x0 + LIST_W - 8, y0 + 25, LINE);
 
+		g.enableScissor(x0, listY0() - 2, x0 + LIST_W, y1 - 4);
 		if (items.isEmpty()) {
-			g.centeredText(font, category == Category.OWNED ? "Пока пусто" : "Скоро здесь что-то будет", cx, gridY0() + 50, MUTED);
+			g.centeredText(font, "Пока пусто", x0 + LIST_W / 2, listY0() + 30, MUTED);
 		}
-
 		float time = (minecraft.level != null ? minecraft.level.getGameTime() : 0) + a;
 		for (int i = 0; i < items.size(); i++) {
 			WardrobeNet.Item item = items.get(i);
-			int x = cardX(i);
-			int y = cardY(i);
-			if (y > y1 || y + CARD_H < gridY0()) {
+			int x = tileX(i);
+			int y = tileY(i);
+			if (y > y1 || y + TILE_H < listY0()) {
 				continue;
 			}
-			boolean hover = mouseX >= x && mouseX < x + CARD_W && mouseY >= y && mouseY < y + CARD_H && mouseY > gridY0();
+			boolean hover = mouseX >= x && mouseX < x + TILE_W && mouseY >= y && mouseY < y + TILE_H && mouseY >= listY0();
 			boolean sel = item.id().equals(selected);
-			g.fill(x, y, x + CARD_W, y + CARD_H, hover ? CARD_HOVER : CARD);
-			// A soft colour behind the model, per slot.
-			int tint = "hat".equals(item.slot()) ? 0x2260A5FA : 0x22F59E0B;
-			g.fill(x, y, x + CARD_W, y + 56, tint);
-			int bar = worn(item) ? GREEN : (item.owned() ? 0xFF64748B : ACCENT);
-			g.fill(x, y + CARD_H - 2, x + CARD_W, y + CARD_H, bar);
-			if (sel) {
-				g.outline(x - 1, y - 1, CARD_W + 2, CARD_H + 2, ACCENT_HOVER);
+			g.fill(x, y, x + TILE_W, y + TILE_H, hover ? TILE_HOVER : TILE);
+			if (sel || worn(item)) {
+				g.outline(x, y, TILE_W, TILE_H, sel ? ACCENT : 0xFF4A4060);
 			}
-
 			float spin = hover || sel ? time * 4 : 35;
 			g.guiRenderState.addPicturesInPictureState(new WardrobePreview.State(null, 0, model(item.id()), spin,
-					x + 6, y + 4, x + CARD_W - 6, y + 54, 40, g.scissorStack.peek()));
-
+					x + 3, y + 2, x + TILE_W - 3, y + TILE_H - 13, 30, g.scissorStack.peek()));
+			String tag;
+			int color;
 			if (worn(item)) {
-				badge(g, x + 3, y + 3, "НАДЕТО", 0xFF166534);
-			}
-			String name = fit(item.name(), CARD_W - 8);
-			g.text(font, name, x + 4, y + 59, TEXT, false);
-			if (item.owned()) {
-				g.text(font, "Есть", x + 4, y + 70, GREEN, false);
+				tag = "Надето";
+				color = ACCENT;
+			} else if (item.owned()) {
+				tag = "Есть";
+				color = GREEN;
 			} else {
-				g.text(font, item.price() + " ◆", x + 4, y + 70, 0xFF93C5FD, false);
+				tag = item.price() + " MX";
+				color = MUTED;
+			}
+			g.centeredText(font, tag, x + TILE_W / 2, y + TILE_H - 11, color);
+			if (hover) {
+				g.setTooltipForNextFrame(font, Component.literal(item.name()), mouseX, mouseY);
 			}
 		}
 		g.disableScissor();
+	}
+
+	private void stage(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+		int sx0 = stageX0();
+		int sx1 = stageX1();
+		int cx = (sx0 + sx1) / 2;
+		int cy = (y0 + y1) / 2 + 10;
+		// A soft round floor behind the player (a stepped disc, the GUI has no circles).
+		int r = Math.min((sx1 - sx0) / 2 - 8, (y1 - y0) / 2 - 30);
+		for (int dy = -r; dy <= r; dy += 2) {
+			int half = (int) Math.sqrt((double) r * r - (double) dy * dy);
+			g.fill(cx - half, cy + dy, cx + half, cy + dy + 2, STAGE);
+		}
+
+		if (minecraft.player != null) {
+			EntityRenderState player = playerState();
+			ItemStackRenderState back = trying.containsKey("backpack") ? model(trying.get("backpack")) : null;
+			int size = Math.min((y1 - y0) * 30 / 100, 80);
+			int top = wideStage() ? y0 + 24 : y0 + 32;
+			g.guiRenderState.addPicturesInPictureState(new WardrobePreview.State(player, 180 + previewYaw, back, 0,
+					cx - 60, top, cx + 60, y1 - 26, size, g.scissorStack.peek()));
+		}
+
+		boolean wide = wideStage();
+		for (Slot s : Slot.values()) {
+			Button b = slotButton(s);
+			if (b == null) {
+				continue;
+			}
+			boolean on = s == slot;
+			boolean hover = b.enabled() && b.over(mouseX, mouseY);
+			if (!b.enabled()) {
+				g.fill(b.x0(), b.y0(), b.x1(), b.y1(), 0xFF1C1925);
+				dashed(g, b, 0xFF3A3448);
+				g.text(font, s.title + " · скоро", b.x0() + 7, b.y0() + 7, DIM, false);
+				continue;
+			}
+			g.fill(b.x0(), b.y0(), b.x1(), b.y1(), hover ? BUTTON_HOVER : BUTTON);
+			g.outline(b.x0(), b.y0(), b.x1() - b.x0(), b.y1() - b.y0(), on ? ACCENT : LINE);
+			if (wide) {
+				String what = nameOf(trying.get(s.id));
+				String label = s.title + " · " + (what == null ? "пусто" : what);
+				g.text(font, fit(label, b.x1() - b.x0() - 12), b.x0() + 7, b.y0() + 7, on ? TEXT : 0xFFC7C0D4, false);
+			} else {
+				g.centeredText(font, s.title, (b.x0() + b.x1()) / 2, b.y0() + 5, on ? TEXT : 0xFFC7C0D4);
+				if (trying.get(s.id) != null) {
+					g.fill(b.x1() - 6, b.y0() + 3, b.x1() - 3, b.y0() + 6, on ? ACCENT : MUTED);
+				}
+			}
+		}
+
+		g.centeredText(font, "Тяни, чтобы повернуть", cx, y1 - 16, DIM);
+	}
+
+	private void dashed(GuiGraphicsExtractor g, Button b, int color) {
+		for (int x = b.x0(); x < b.x1(); x += 4) {
+			g.fill(x, b.y0(), Math.min(x + 2, b.x1()), b.y0() + 1, color);
+			g.fill(x, b.y1() - 1, Math.min(x + 2, b.x1()), b.y1(), color);
+		}
+		for (int y = b.y0(); y < b.y1(); y += 4) {
+			g.fill(b.x0(), y, b.x0() + 1, Math.min(y + 2, b.y1()), color);
+			g.fill(b.x1() - 1, y, b.x1(), Math.min(y + 2, b.y1()), color);
+		}
+	}
+
+	private void info(GuiGraphicsExtractor g, int mouseX, int mouseY) {
+		int ix0 = x1 - INFO_W;
+		g.fill(ix0, y0, x1, y1, SIDE);
+		g.text(font, Component.literal(state.coins() + " MX").withStyle(s -> s.withBold(true)), ix0 + 10, y0 + 11, TEXT, false);
+		Button top = topUpButton();
+		boolean topHover = top.over(mouseX, mouseY);
+		g.outline(top.x0(), top.y0(), top.x1() - top.x0(), top.y1() - top.y0(), topHover ? ACCENT_HOVER : ACCENT);
+		g.centeredText(font, "Пополнить", (top.x0() + top.x1()) / 2, top.y0() + 3, topHover ? ACCENT_HOVER : ACCENT);
+		g.fill(ix0 + 10, y0 + 30, x1 - 10, y0 + 31, LINE);
+
+		WardrobeNet.Item item = selectedItem();
+		int ty = y0 + 40;
+		g.text(font, slot.title.toUpperCase(java.util.Locale.ROOT), ix0 + 10, ty, MUTED, false);
+		if (item != null) {
+			List<net.minecraft.util.FormattedCharSequence> lines = font.split(
+					Component.literal(item.name()).withStyle(s -> s.withBold(true)), INFO_W - 20);
+			int ly = ty + 14;
+			for (net.minecraft.util.FormattedCharSequence line : lines) {
+				g.text(font, line, ix0 + 10, ly, TEXT, false);
+				ly += 11;
+			}
+			String status = worn(item) ? "Надето" : (item.owned() ? "Есть в гардеробе" : item.price() + " MX");
+			g.text(font, status, ix0 + 10, ly + 4, worn(item) ? ACCENT : (item.owned() ? GREEN : MUTED), false);
+		} else {
+			g.text(font, "Выбери предмет слева,", ix0 + 10, ty + 14, DIM, false);
+			g.text(font, "чтобы примерить", ix0 + 10, ty + 25, DIM, false);
+		}
+
+		Button act = actionButton();
+		boolean actHover = act.over(mouseX, mouseY);
+		int col;
+		int textCol = ON_ACCENT;
+		if (!act.enabled()) {
+			col = DISABLED;
+			textCol = DIM;
+		} else if (item != null && worn(item)) {
+			col = actHover ? 0xFFF06A6E : RED;
+			textCol = TEXT;
+		} else {
+			col = actHover ? ACCENT_HOVER : ACCENT;
+		}
+		g.fill(act.x0(), act.y0(), act.x1(), act.y1(), col);
+		g.centeredText(font, actionLabel(), (act.x0() + act.x1()) / 2, act.y0() + 6, textCol);
+
+		Button off = takeOffButton();
+		if (off.enabled()) {
+			g.fill(off.x0(), off.y0(), off.x1(), off.y1(), off.over(mouseX, mouseY) ? BUTTON_HOVER : BUTTON);
+			g.centeredText(font, "Снять всё", (off.x0() + off.x1()) / 2, off.y0() + 5, TEXT);
+		}
 	}
 
 	private String fit(String text, int width) {
@@ -342,67 +450,18 @@ public final class WardrobeScreen extends Screen {
 		return font.plainSubstrByWidth(text, width - font.width("…")) + "…";
 	}
 
-	private void badge(GuiGraphicsExtractor g, int x, int y, String text, int color) {
-		int w = font.width(text) + 6;
-		g.fill(x, y, x + w, y + 11, color);
-		g.text(font, text, x + 3, y + 2, TEXT, false);
-	}
-
-	private void preview(GuiGraphicsExtractor g, int mouseX, int mouseY, float a) {
-		int px0 = x1 - PREVIEW_W;
-		g.fill(px0, y0, x1, y1, SIDEBAR);
-		g.fill(px0, y0, px0 + 1, y1, LINE);
-		g.fill(px0, y0, x1, y0 + HEADER_H, HEADER);
-
-		// Balance + top up.
-		String coins = state.coins() + " MX";
-		g.text(font, coins, px0 + 8, y0 + 7, 0xFF93C5FD, false);
-		Button top = topUpButton();
-		button(g, top, "Пополнить", top.over(mouseX, mouseY) ? ACCENT_HOVER : ACCENT);
-
-		// Player.
-		int boxY0 = y0 + HEADER_H + 4;
-		int boxY1 = y1 - 80;
-		if (minecraft.player != null) {
-			EntityRenderState player = playerState();
-			ItemStackRenderState back = trying.containsKey("backpack") ? model(trying.get("backpack")) : null;
-			int size = Math.min((boxY1 - boxY0) * 36 / 100, 80);
-			g.guiRenderState.addPicturesInPictureState(new WardrobePreview.State(player, 180 + previewYaw, back, 0,
-					px0 + 4, boxY0, x1 - 4, boxY1, size, g.scissorStack.peek()));
-		}
-		g.centeredText(font, "Тяни, чтобы повернуть", (px0 + x1) / 2, boxY1 + 2, 0xFF475569);
-
-		// What is picked and what to do with it.
-		WardrobeNet.Item item = selectedItem();
-		int infoY = y1 - 60;
-		if (item != null) {
-			g.text(font, fit(item.name(), PREVIEW_W - 16), px0 + 10, infoY, TEXT, false);
-		}
-		boolean anyWorn = !state.worn().isEmpty();
-		Button off = takeOffButton();
-		if (anyWorn) {
-			button(g, off, "Снять всё", off.over(mouseX, mouseY) ? 0xFF4B5563 : 0xFF374151);
-		}
-		Button act = actionButton();
-		int col = !act.enabled() ? DISABLED : (act.over(mouseX, mouseY) ? ACCENT_HOVER : ACCENT);
-		if (item != null && worn(item)) {
-			col = act.over(mouseX, mouseY) ? 0xFFF87171 : 0xFFDC2626;
-		}
-		button(g, act, actionLabel(), col);
-	}
-
-	private void button(GuiGraphicsExtractor g, Button b, String label, int color) {
-		g.fill(b.x0(), b.y0(), b.x1(), b.y1(), color);
-		g.fill(b.x0(), b.y1() - 1, b.x1(), b.y1(), 0x40000000);
-		g.centeredText(font, label, (b.x0() + b.x1()) / 2, (b.y0() + b.y1()) / 2 - 4, b.enabled() ? TEXT : MUTED);
-	}
-
 	/** The player's render state, standing, turned by the drag, wearing what is tried on. */
 	@SuppressWarnings("unchecked")
 	private EntityRenderState playerState() {
 		Entity player = minecraft.player;
 		EntityRenderer<? super Entity, ?> renderer = (EntityRenderer<? super Entity, ?>) minecraft.getEntityRenderDispatcher().getRenderer(player);
-		EntityRenderState rs = renderer.createRenderState(player, 1.0F);
+		WardrobeSelf.suppress = true;
+		EntityRenderState rs;
+		try {
+			rs = renderer.createRenderState(player, 1.0F);
+		} finally {
+			WardrobeSelf.suppress = false;
+		}
 		rs.shadowPieces.clear();
 		rs.outlineColor = 0;
 		rs.lightCoords = 15728880;
@@ -438,23 +497,24 @@ public final class WardrobeScreen extends Screen {
 			return super.mouseClicked(event, doubleClick);
 		}
 
-		// Categories.
-		int y = y0 + HEADER_H + 6;
-		for (Category c : Category.values()) {
-			if (mx >= x0 && mx < x0 + SIDEBAR_W && my >= y && my < y + 20) {
-				category = c;
-				scroll = 0;
+		// Slots.
+		for (Slot s : Slot.values()) {
+			Button b = slotButton(s);
+			if (b != null && b.enabled() && b.over(mx, my)) {
+				if (slot != s) {
+					slot = s;
+					scroll = 0;
+				}
 				return true;
 			}
-			y += 22;
 		}
 
-		// Cards.
+		// Tiles.
 		List<WardrobeNet.Item> items = shown();
 		for (int i = 0; i < items.size(); i++) {
-			int x = cardX(i);
-			int cy = cardY(i);
-			if (mx >= x && mx < x + CARD_W && my >= cy && my < cy + CARD_H && my > gridY0()) {
+			int x = tileX(i);
+			int ty = tileY(i);
+			if (mx >= x && mx < x + TILE_W && my >= ty && my < ty + TILE_H && my >= listY0() && my < y1 - 4) {
 				WardrobeNet.Item item = items.get(i);
 				if (doubleClick && item.owned()) {
 					WardrobeNet.send(worn(item) ? "remove" : "wear", worn(item) ? "slot" : "id", worn(item) ? item.slot() : item.id());
@@ -471,9 +531,10 @@ public final class WardrobeScreen extends Screen {
 			ConfirmLinkScreen.confirmLinkNow(this, URI.create(state.store()));
 			return true;
 		}
-		if (!state.worn().isEmpty() && takeOffButton().over(mx, my)) {
-			for (String slot : state.worn().keySet()) {
-				WardrobeNet.send("remove", "slot", slot);
+		Button off = takeOffButton();
+		if (off.enabled() && off.over(mx, my)) {
+			for (String s : state.worn().keySet()) {
+				WardrobeNet.send("remove", "slot", s);
 			}
 			selected = null;
 			return true;
@@ -492,7 +553,7 @@ public final class WardrobeScreen extends Screen {
 		}
 
 		// Drag the player round.
-		if (mx >= x1 - PREVIEW_W && mx < x1 && my >= y0 + HEADER_H && my < y1 - 80) {
+		if (mx >= stageX0() && mx < stageX1() && my >= y0 && my < y1) {
 			dragging = true;
 			return true;
 		}
@@ -516,7 +577,7 @@ public final class WardrobeScreen extends Screen {
 
 	@Override
 	public boolean mouseScrolled(double x, double y, double scrollX, double scrollY) {
-		if (x >= gridX0() && x < gridX1()) {
+		if (x >= x0 && x < x0 + LIST_W) {
 			scroll = Mth.clamp(scroll - scrollY * 20, 0, maxScroll());
 			return true;
 		}
