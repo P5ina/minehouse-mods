@@ -135,6 +135,16 @@ class RiftUiTest {
 	}
 
 	@Test
+	void theScreenEffectFollowsTheState() {
+		assertEquals(RiftFx.RUN, RiftFx.pick(true, false, true, false, 1f));
+		assertEquals(RiftFx.LOW, RiftFx.pick(true, false, true, false, 0.3f));
+		assertEquals(RiftFx.DOWNED, RiftFx.pick(true, false, true, true, 0.05f));
+		assertEquals(RiftFx.LOBBY, RiftFx.pick(false, true, false, false, 1f));
+		assertEquals(null, RiftFx.pick(false, false, false, false, 1f)); // another server: nothing of ours
+		assertEquals(null, RiftFx.pick(false, false, true, false, 0.1f)); // watching the run after being knocked out
+	}
+
+	@Test
 	void theRunSaysWhereWeAre() {
 		assertEquals("ЗАЛ 2 ИЗ 3 · ВОЛНА 1 ИЗ 2", RiftHud.objective(run(2, 1, 2)));
 		assertEquals("ЗАЛ 3 ИЗ 3", RiftHud.objective(run(3, 0, 0)));
