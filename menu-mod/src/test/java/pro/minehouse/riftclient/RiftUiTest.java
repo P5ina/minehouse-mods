@@ -173,4 +173,14 @@ class RiftUiTest {
 		assertEquals("в забеге", PartyScreen.personNote(new RiftUiPayloads.Person("James", (byte) 2)));
 		assertTrue(PartyScreen.rowsThatFit(240) >= 2 && PartyScreen.rowsThatFit(1080) == 8 && PartyScreen.rowsThatFit(100) == 1);
 	}
+
+	@Test
+	void theBlowSlotFollowsTheWeaponCooldown() {
+		assertEquals(1f, Combat.strikeCovered(0f));
+		assertEquals(0.5f, Combat.strikeCovered(0.5f), 1e-6);
+		assertEquals(0f, Combat.strikeCovered(1f));
+		// The last sliver doesn't flicker on the slot.
+		assertEquals(0f, Combat.strikeCovered(0.99f));
+		assertEquals(1f, Combat.strikeCovered(-3f));
+	}
 }

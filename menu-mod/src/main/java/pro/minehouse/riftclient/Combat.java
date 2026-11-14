@@ -199,6 +199,15 @@ public final class Combat {
 		return n.length() > 6 ? n.substring(0, 6) : n;
 	}
 
+	/**
+	 * How much of the blow's slot is covered: the weapon's own cooldown, 1 right after a swing and 0
+	 * when the next blow lands at full strength.
+	 */
+	static float strikeCovered(float attackStrength) {
+		float left = 1 - Math.max(0, Math.min(1, attackStrength));
+		return left < 0.02f ? 0 : left;
+	}
+
 	static final int SLOT = 22;
 	static final int GAP = 26;
 
@@ -217,9 +226,9 @@ public final class Combat {
 		for (int i = 0; i < 4; i++) {
 			int sx = x + i * (SLOT + GAP);
 			int skill = i - 1;
-			float covered = skill < 0 ? 0 : covered(skill, now);
+			float covered = skill < 0 ? (mc.player == null ? 0 : strikeCovered(mc.player.getAttackStrengthScale(0))) : covered(skill, now);
 			long left = skill < 0 ? 0 : left(skill, now);
-			boolean ready = left <= 0;
+			boolean ready = skill < 0 ? covered <= 0 : left <= 0;
 			int edge = !ready ? 0x6B5A8F : i == 0 ? Ui.WHITE : Ui.ACCENT;
 			g.fill(sx - 1, y - 1, sx + SLOT + 1, y + SLOT + 1, Ui.a(edge, 1));
 			g.fill(sx, y, sx + SLOT, y + SLOT, Ui.a(0x120A1C, 1));
@@ -227,7 +236,7 @@ public final class Combat {
 			if (!ready) {
 				int cover = Math.round(SLOT * covered);
 				g.fill(sx, y + SLOT - cover, sx + SLOT, y + SLOT, Ui.a(0x3A2A5C, 0.85f));
-				if (total[skill] > 300) {
+				if (skill >= 0 && total[skill] > 300) {
 					Ui.big(g, font, countdown(left), sx + SLOT / 2, y + 7, 1f, 0xFFFFFFFF, 1);
 				}
 			}

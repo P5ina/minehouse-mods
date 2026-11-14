@@ -57,16 +57,17 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> RiftHud.leftServer());
 		ClientTickEvents.END_CLIENT_TICK.register(RiftHud::tick);
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minehouse-rift", "hud"), RiftHud::draw);
-		// In a run our own health stands in the corner: no hearts, no armour row. The lobby is a
-		// screen over a scene: nothing of the usual game interface belongs there.
-		for (Identifier vanilla : new Identifier[] {VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR}) {
+		// In a run our own health stands in the corner: no hearts, no armour row, and no food row,
+		// there is no hunger in the mode. The lobby is a screen over a scene: nothing of the usual
+		// game interface belongs there.
+		for (Identifier vanilla : new Identifier[] {VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR, VanillaHudElements.FOOD_BAR}) {
 			HudElementRegistry.replaceElement(vanilla, old -> (g, delta) -> {
 				if (!RiftHud.inRun() && !RiftHud.lobby().inLobby()) {
 					old.extractRenderState(g, delta);
 				}
 			});
 		}
-		for (Identifier vanilla : new Identifier[] {VanillaHudElements.CROSSHAIR, VanillaHudElements.HOTBAR, VanillaHudElements.FOOD_BAR,
+		for (Identifier vanilla : new Identifier[] {VanillaHudElements.CROSSHAIR, VanillaHudElements.HOTBAR,
 				VanillaHudElements.AIR_BAR, VanillaHudElements.INFO_BAR, VanillaHudElements.INFO_BAR_FOREGROUND, VanillaHudElements.EXPERIENCE_LEVEL,
 				VanillaHudElements.HELD_ITEM_TOOLTIP}) {
 			HudElementRegistry.replaceElement(vanilla, old -> (g, delta) -> {
@@ -91,7 +92,8 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		int x = (int) Math.round(g.guiWidth() / 2.0 + TopDown.cursorX() * half);
 		int y = (int) Math.round(half - TopDown.cursorY() * half);
 		int dark = 0xC0101018;
-		int light = 0xFFF2E6FF;
+		// Dimmed while the weapon is still coming back from the last blow.
+		int light = mc.player != null && Combat.strikeCovered(mc.player.getAttackStrengthScale(0)) > 0 ? 0xFF8F7FB0 : 0xFFF2E6FF;
 		// Four ticks around a dot, with a dark edge so it reads on any floor.
 		for (int[] t : new int[][] {{-7, 0, -3, 1}, {4, 0, 8, 1}, {0, -7, 1, -3}, {0, 4, 1, 8}}) {
 			g.fill(x + t[0] - 1, y + t[1] - 1, x + t[2] + 1, y + t[3] + 1, dark);
