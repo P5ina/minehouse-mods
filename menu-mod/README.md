@@ -13,6 +13,7 @@ Events Editor и Zones Client. Каждая часть живёт в своём 
 | `pro.minehouse.anvilclient` | настоящая цена в окне наковальни |
 | `pro.minehouse.zonesclient` | границы зон спавна линиями и стенами |
 | `pro.minehouse.eventseditor` | редактор шоу для админов (клавиша K) |
+| `pro.minehouse.riftclient` | режим «Разлом»: вид сверху, курсор, управление; картинка разлома |
 
 ## Меню
 
@@ -93,6 +94,28 @@ Events Editor и Zones Client. Каждая часть живёт в своём 
 - `SelfTest`: проверка для CI.
 - `Demo`: только для разработки, рисует выдуманные зоны и делает скриншот.
 
+## Разлом (`pro.minehouse.riftclient`)
+
+Клиентская половина режима [«Разлом»](../rift-mod/README.md); без неё сервер режима не пускает
+(признак мода для сервера — то, что клиент слушает канал `minehouse-rift:view`).
+
+- Сервер присылает `RiftViewPayload`: включить вид сверху (угол поворота, наклон, расстояние)
+  или вернуть обычный. При выходе с сервера вид возвращается сам.
+- `TopDown` — вся геометрия числами, без игры (юнит-тесты `TopDownTest`): камера над игроком
+  с узким углом обзора, мышь двигает курсор по экрану (сама мышь остаётся захваченной),
+  персонаж поворачивается к точке под курсором, W, A, S, D ведут по экрану, а не туда, куда
+  смотрит персонаж.
+- Клик действует на то, что под курсором: левый бьёт моба под курсором, а если там никого,
+  то ближайшего в пределах удара и ±60° от взгляда; правый открывает блок под курсором.
+  Луч курсора проходит сквозь барьеры и блоки света (ими сделаны крыша и свет в залах).
+- Миксины (`minehouse-rift-client.mixins.json`): `Camera` (положение и угол обзора),
+  `MouseHandler.turnPlayer` (курсор вместо поворота головы), `KeyboardInput.tick` (ходьба по
+  экрану), `Minecraft.startAttack/startUseItem` (цель клика).
+- В том же пакете приходит «упал»: пока напарник не поднимет, персонаж ползёт (поза своего
+  игрока выбирается на клиенте, поэтому серверу мало выставить её у себя).
+- `assets/minehouse-rift/` — анимированная картинка разлома (та же, что в ресурспаке
+  выживания): на сервере режима ресурспак не качается.
+
 ## Редактор шоу (`pro.minehouse.eventseditor`)
 
 Клиентский Fabric-мод: редактор шоу для [MineHouse Events](../events-mod/README.md). Входит в сборку
@@ -120,6 +143,7 @@ xvfb-run ./gradlew runSelftestClient                    # меню: скринш
 xvfb-run ./gradlew runSelftestClient -Pselftest=anvil -PselftestDir=run-selftest-anvil    # MINEHOUSE_ANVIL_CLIENT_OK
 xvfb-run ./gradlew runSelftestClient -Pselftest=editor -PselftestDir=run-selftest-editor  # MINEHOUSE_EVENTS_EDITOR_OK
 xvfb-run ./gradlew runSelftestClient -Pselftest=zones -PselftestDir=run-selftest-zones    # MINEHOUSE_ZONES_CLIENT_OK
+xvfb-run ./gradlew runSelftestClient -Pselftest=rift -PselftestDir=run-selftest-rift      # MINEHOUSE_RIFT_CLIENT_OK
 ```
 
 Проверка: `xvfb-run ./gradlew runSelftestClient` открывает игру, ждёт на

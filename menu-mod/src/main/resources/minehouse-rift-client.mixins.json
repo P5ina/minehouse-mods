@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "package": "pro.minehouse.riftclient.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": ["RiftCameraMixin", "RiftClickMixin", "RiftCrawlMixin", "RiftKeyboardMixin", "RiftMouseMixin"],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

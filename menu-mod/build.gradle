@@ -22,6 +22,7 @@ loom {
 		//   xvfb-run ./gradlew runSelftestClient -Pselftest=anvil   anvil mixin + cost packet
 		//   xvfb-run ./gradlew runSelftestClient -Pselftest=editor  show editor panel screenshot
 		//   xvfb-run ./gradlew runSelftestClient -Pselftest=zones   zone packet, codec, gizmos
+		//   xvfb-run ./gradlew runSelftestClient -Pselftest=rift    Rift view packet, codec, mixins, geometry
 		selftestClient {
 			client()
 			name = "Self-test client"

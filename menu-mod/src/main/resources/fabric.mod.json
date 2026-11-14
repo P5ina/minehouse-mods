@@ -3,7 +3,7 @@
   "id": "minehouse-client",
   "version": "${version}",
   "name": "MineHouse",
-  "description": "Клиентский мод сборки MineHouse: главное меню с кнопкой «Играть на MineHouse», автообновление сборки, гардероб и косметика, настоящая цена в наковальне, границы зон спавна и редактор шоу для админов.",
+  "description": "Клиентский мод сборки MineHouse: главное меню с кнопкой «Играть на MineHouse», автообновление сборки, гардероб и косметика, настоящая цена в наковальне, границы зон спавна, вид сверху в режиме «Разлом» и редактор шоу для админов.",
   "authors": ["MineHouse"],
   "contact": {
     "homepage": "https://www.minehouse.pro"
@@ -16,10 +16,11 @@
       "pro.minehouse.menu.MinehouseMenu",
       "pro.minehouse.anvilclient.MinehouseAnvilClient",
       "pro.minehouse.eventseditor.MinehouseEventsEditor",
-      "pro.minehouse.zonesclient.MinehouseZonesClient"
+      "pro.minehouse.zonesclient.MinehouseZonesClient",
+      "pro.minehouse.riftclient.MinehouseRiftClient"
     ]
   },
-  "mixins": ["minehouse-menu.mixins.json", "minehouse-anvil-client.mixins.json"],
+  "mixins": ["minehouse-menu.mixins.json", "minehouse-anvil-client.mixins.json", "minehouse-rift-client.mixins.json"],
   "depends": {
     "fabricloader": ">=0.20.1",
     "minecraft": "~26.3",
