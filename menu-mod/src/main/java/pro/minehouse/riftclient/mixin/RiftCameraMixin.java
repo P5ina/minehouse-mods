@@ -38,7 +38,7 @@ public abstract class RiftCameraMixin {
 
 	@Inject(method = "calculateFov(F)F", at = @At("HEAD"), cancellable = true)
 	private void minehouse$riftFov(float partialTicks, CallbackInfoReturnable<Float> cir) {
-		if (TopDown.shot(entity, partialTicks) != null) {
+		if (TopDown.active() && TopDown.shot(entity, partialTicks) != null) {
 			cir.setReturnValue(TopDown.FOV);
 		}
 	}

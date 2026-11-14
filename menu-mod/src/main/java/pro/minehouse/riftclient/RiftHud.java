@@ -127,6 +127,7 @@ public final class RiftHud {
 		roster = new RiftUiPayloads.Roster(List.of());
 		run = RiftUiPayloads.NOT_IN_RUN;
 		result = null;
+		Combat.reset();
 	}
 
 	/** We are no longer on the server of the mode: its screens and its view go away. */
@@ -291,6 +292,10 @@ public final class RiftHud {
 			String hp = down ? "0 / " + Math.round(max) : (int) Math.ceil(health) + " / " + Math.round(max);
 			g.text(font, hp, 134 - font.width(hp), by + 1, 0xFFFFFFFF, true);
 			Ui.bar(g, 34, by + 13, 100, 6, down ? 0 : health / max, Ui.healthColor(health / max), 0x14532D, 1);
+		}
+
+		if (run.downLeft() < 0 && mc.player != null && !mc.player.isSpectator()) {
+			Combat.draw(g, font, mc, w, h);
 		}
 
 		if (run.downLeft() >= 0) {

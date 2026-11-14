@@ -87,6 +87,54 @@ class RiftUiTest {
 	}
 
 	@Test
+	void fightAndSceneSurviveTheWire() {
+		FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+		RiftUiPayloads.Cast cast = new RiftUiPayloads.Cast((byte) 0, 0.6f, -0.8f);
+		RiftUiPayloads.Cast.CODEC.encode(buf, cast);
+		assertEquals(cast, RiftUiPayloads.Cast.CODEC.decode(buf));
+		RiftUiPayloads.Cooldown cool = new RiftUiPayloads.Cooldown((byte) -1, 0);
+		RiftUiPayloads.Cooldown.CODEC.encode(buf, cool);
+		assertEquals(cool, RiftUiPayloads.Cooldown.CODEC.decode(buf));
+		RiftUiPayloads.Warn warn = new RiftUiPayloads.Warn(1024.5, 64, 80.25, 6f, 24);
+		RiftUiPayloads.Warn.CODEC.encode(buf, warn);
+		assertEquals(warn, RiftUiPayloads.Warn.CODEC.decode(buf));
+		RiftUiPayloads.Scene scene = new RiftUiPayloads.Scene(true, 512.5, 102, -6.5, 0, 8);
+		RiftUiPayloads.Scene.CODEC.encode(buf, scene);
+		assertEquals(scene, RiftUiPayloads.Scene.CODEC.decode(buf));
+		assertEquals(0, buf.readableBytes());
+	}
+
+	@Test
+	void skillsCoolDown() {
+		Combat.reset();
+		assertEquals(0, Combat.left(Combat.WAVE, 1000));
+		assertEquals(0f, Combat.covered(Combat.WAVE, 1000));
+		Combat.cooldown(Combat.WAVE, 160, 1000);
+		assertEquals(8000, Combat.left(Combat.WAVE, 1000));
+		assertEquals(1f, Combat.covered(Combat.WAVE, 1000));
+		assertEquals(0.5f, Combat.covered(Combat.WAVE, 5000), 1e-6);
+		assertEquals(0, Combat.left(Combat.WAVE, 9000));
+		assertEquals(0, Combat.left(Combat.ROLL, 1000)); // each skill on its own
+		Combat.cooldown(-1, 0, 2000); // a new run: everything is ready
+		assertEquals(0, Combat.left(Combat.WAVE, 2000));
+	}
+
+	@Test
+	void slotsSpeakShort() {
+		assertEquals("", Combat.countdown(0));
+		assertEquals("1.2", Combat.countdown(1200));
+		assertEquals("0.1", Combat.countdown(60));
+		assertEquals("12", Combat.countdown(11200));
+		assertEquals("ЛКМ", Combat.shortKey("Левая кнопка"));
+		assertEquals("ЛКМ", Combat.shortKey("Left Button"));
+		assertEquals("ПРОБЕЛ", Combat.shortKey("Пробел"));
+		assertEquals("ПРОБЕЛ", Combat.shortKey("Space"));
+		assertEquals("Q", Combat.shortKey("q"));
+		assertEquals(0.5f, Combat.grown(600, 1200), 1e-6);
+		assertEquals(1f, Combat.grown(5000, 1200));
+	}
+
+	@Test
 	void theRunSaysWhereWeAre() {
 		assertEquals("ЗАЛ 2 ИЗ 3 · ВОЛНА 1 ИЗ 2", RiftHud.objective(run(2, 1, 2)));
 		assertEquals("ЗАЛ 3 ИЗ 3", RiftHud.objective(run(3, 0, 0)));

@@ -94,4 +94,23 @@ class TopDownTest {
 		assertTrue(TopDown.inArc(me, 170f, new Vec3(0.3, 64, -2), TopDown.STRIKE_ARC), "across the -180/180 seam");
 		assertTrue(TopDown.inArc(me, 0f, new Vec3(0.2, 64, -0.2), TopDown.STRIKE_ARC), "on top of the character");
 	}
+
+	@Test
+	void rollGoesWhereTheKeysLead() {
+		// Looking south (yaw 0, +z): forward is +z, left is +x.
+		net.minecraft.world.phys.Vec2 f = TopDown.worldDirection(new net.minecraft.world.phys.Vec2(0, 1), 0);
+		assertEquals(0, f.x, 1e-5);
+		assertEquals(1, f.y, 1e-5);
+		net.minecraft.world.phys.Vec2 l = TopDown.worldDirection(new net.minecraft.world.phys.Vec2(1, 0), 0);
+		assertEquals(1, l.x, 1e-5);
+		assertEquals(0, l.y, 1e-5);
+		// Looking west (yaw 90, -x): forward is -x.
+		net.minecraft.world.phys.Vec2 w = TopDown.worldDirection(new net.minecraft.world.phys.Vec2(0, 1), 90);
+		assertEquals(-1, w.x, 1e-5);
+		assertEquals(0, w.y, 1e-5);
+		// No key: nothing, the server rolls where the player looks.
+		net.minecraft.world.phys.Vec2 none = TopDown.worldDirection(net.minecraft.world.phys.Vec2.ZERO, 37);
+		assertEquals(0, none.x, 1e-6);
+		assertEquals(0, none.y, 1e-6);
+	}
 }

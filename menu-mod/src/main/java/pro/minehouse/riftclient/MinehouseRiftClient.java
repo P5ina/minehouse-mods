@@ -35,6 +35,17 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Run.TYPE, RiftUiPayloads.Run.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Result.TYPE, RiftUiPayloads.Result.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RiftUiPayloads.Action.TYPE, RiftUiPayloads.Action.CODEC);
+		// The fight: the roll and the abilities, their cooldowns, the warnings on the floor.
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Cooldown.TYPE, RiftUiPayloads.Cooldown.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Warn.TYPE, RiftUiPayloads.Warn.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(RiftUiPayloads.Cast.TYPE, RiftUiPayloads.Cast.CODEC);
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Cooldown.TYPE, (payload, context) -> Combat.cooldown(payload));
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Warn.TYPE, (payload, context) -> Combat.warn(payload));
+		ClientTickEvents.START_CLIENT_TICK.register(Combat::keys);
+		ClientTickEvents.END_CLIENT_TICK.register(Combat::tick);
+		// The lobby's camera is ours: the server only says where it stands.
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Scene.TYPE, RiftUiPayloads.Scene.CODEC);
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Scene.TYPE, (payload, context) -> TopDown.scene(payload));
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Note.TYPE, (payload, context) -> RiftHud.note(payload));
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Lobby.TYPE, (payload, context) -> RiftHud.lobby(payload));
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Roster.TYPE, (payload, context) -> RiftHud.roster(payload));

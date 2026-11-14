@@ -48,6 +48,8 @@ public final class TopDown {
 	private static CameraType before;
 	/** Down in a run: the character crawls until a teammate gets them up. */
 	private static boolean downed;
+	/** The lobby's camera: it stands still where the server said, the player is not in the picture. */
+	private static Shot scene;
 
 	public record Shot(Vec3 position, float yRot, float xRot) {
 	}
@@ -64,11 +66,9 @@ public final class TopDown {
 	}
 
 	static void apply(RiftViewPayload p) {
-		Minecraft mc = Minecraft.getInstance();
 		downed = p.downed();
 		if (p.topDown()) {
 			if (!active) {
-				before = mc.options.getCameraType();
 				cursorX = 0;
 				cursorY = 0.35;
 			}
@@ -77,23 +77,45 @@ public final class TopDown {
 			distance = Mth.clamp(p.distance(), 4f, 64f);
 			active = true;
 		} else {
-			stop();
+			active = false;
+		}
+		sync();
+	}
+
+	/** The lobby's camera is on (the server says where) or off. */
+	static void scene(RiftUiPayloads.Scene s) {
+		scene = s.on() ? new Shot(new Vec3(s.x(), s.y(), s.z()), s.yaw(), Mth.clamp(s.pitch(), -89f, 89f)) : null;
+		sync();
+	}
+
+	/** The camera stands still in the lobby (and we are not in a run). */
+	public static boolean fixed() {
+		return scene != null && !active;
+	}
+
+	/** Our camera needs the third person view; the player's own choice comes back when it is over. */
+	private static void sync() {
+		Minecraft mc = Minecraft.getInstance();
+		boolean ours = active || scene != null;
+		if (ours && before == null) {
+			before = mc.options.getCameraType();
+		} else if (!ours && before != null) {
+			mc.options.setCameraType(before);
+			before = null;
 		}
 	}
 
 	/** Back to the usual view: the server said so, or the player left it. */
 	static void stop() {
 		downed = false;
-		if (active && before != null) {
-			Minecraft.getInstance().options.setCameraType(before);
-		}
 		active = false;
-		before = null;
+		scene = null;
+		sync();
 	}
 
 	/** Each tick: third person is what makes the game draw the player and hide the hand. */
 	static void tick(Minecraft mc) {
-		if (active && mc.options.getCameraType() != CameraType.THIRD_PERSON_BACK) {
+		if ((active || scene != null) && mc.options.getCameraType() != CameraType.THIRD_PERSON_BACK) {
 			mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
 		}
 	}
@@ -102,8 +124,11 @@ public final class TopDown {
 
 	public static Shot shot(Entity entity, float partialTicks) {
 		Minecraft mc = Minecraft.getInstance();
-		if (!active || entity == null || entity != mc.player) {
+		if (entity == null || entity != mc.player) {
 			return null;
+		}
+		if (!active) {
+			return scene;
 		}
 		return new Shot(cameraPosition(entity.getPosition(partialTicks), camYaw, camPitch, distance), camYaw, camPitch);
 	}
@@ -292,6 +317,17 @@ public final class TopDown {
 		double d = Math.toRadians(cameraYaw - playerYaw);
 		float cos = (float) Math.cos(d);
 		float sin = (float) Math.sin(d);
+		return new Vec2(move.x * cos - move.y * sin, move.y * cos + move.x * sin);
+	}
+
+	/**
+	 * Where on the ground the player goes with this input: {@code move} is (left, forward) relative
+	 * to where the player looks, as the game keeps it. Returns (x, z) of the world; zero when no key is held.
+	 */
+	static Vec2 worldDirection(Vec2 move, float playerYaw) {
+		double r = Math.toRadians(playerYaw);
+		float sin = (float) Math.sin(r);
+		float cos = (float) Math.cos(r);
 		return new Vec2(move.x * cos - move.y * sin, move.y * cos + move.x * sin);
 	}
 

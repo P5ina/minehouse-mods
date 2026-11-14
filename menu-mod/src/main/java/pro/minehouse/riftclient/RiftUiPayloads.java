@@ -231,5 +231,77 @@ public final class RiftUiPayloads {
 		}
 	}
 
+	/** Ask the server to use a skill: 0 roll, 1 wave, 2 shard; {@code dx}, {@code dz}: where the keys lead (for the roll). */
+	public record Cast(byte skill, float dx, float dz) implements CustomPacketPayload {
+		public static final Type<Cast> TYPE = new Type<>(Identifier.fromNamespaceAndPath("minehouse-rift", "cast"));
+		public static final StreamCodec<FriendlyByteBuf, Cast> CODEC = StreamCodec.of(
+				(buf, c) -> {
+					buf.writeByte(c.skill());
+					buf.writeFloat(c.dx());
+					buf.writeFloat(c.dz());
+				},
+				buf -> new Cast(buf.readByte(), buf.readFloat(), buf.readFloat()));
+
+		@Override
+		public Type<Cast> type() {
+			return TYPE;
+		}
+	}
+
+	/** A skill was used and is ready again in {@code ticks}; skill -1: all of them are ready (a new run). */
+	public record Cooldown(byte skill, int ticks) implements CustomPacketPayload {
+		public static final Type<Cooldown> TYPE = new Type<>(Identifier.fromNamespaceAndPath("minehouse-rift", "cooldown"));
+		public static final StreamCodec<FriendlyByteBuf, Cooldown> CODEC = StreamCodec.of(
+				(buf, c) -> {
+					buf.writeByte(c.skill());
+					buf.writeVarInt(c.ticks());
+				},
+				buf -> new Cooldown(buf.readByte(), buf.readVarInt()));
+
+		@Override
+		public Type<Cooldown> type() {
+			return TYPE;
+		}
+	}
+
+	/** A blow is coming: in {@code ticks} it lands on the circle of {@code radius} blocks around this point of the floor. */
+	public record Warn(double x, double y, double z, float radius, int ticks) implements CustomPacketPayload {
+		public static final Type<Warn> TYPE = new Type<>(Identifier.fromNamespaceAndPath("minehouse-rift", "warn"));
+		public static final StreamCodec<FriendlyByteBuf, Warn> CODEC = StreamCodec.of(
+				(buf, w) -> {
+					buf.writeDouble(w.x());
+					buf.writeDouble(w.y());
+					buf.writeDouble(w.z());
+					buf.writeFloat(w.radius());
+					buf.writeVarInt(w.ticks());
+				},
+				buf -> new Warn(buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readVarInt()));
+
+		@Override
+		public Type<Warn> type() {
+			return TYPE;
+		}
+	}
+
+	/** The lobby's fixed camera, held by us: where it stands and where it looks; {@code on} off: none. */
+	public record Scene(boolean on, double x, double y, double z, float yaw, float pitch) implements CustomPacketPayload {
+		public static final Type<Scene> TYPE = new Type<>(Identifier.fromNamespaceAndPath("minehouse-rift", "scene"));
+		public static final StreamCodec<FriendlyByteBuf, Scene> CODEC = StreamCodec.of(
+				(buf, s) -> {
+					buf.writeBoolean(s.on());
+					buf.writeDouble(s.x());
+					buf.writeDouble(s.y());
+					buf.writeDouble(s.z());
+					buf.writeFloat(s.yaw());
+					buf.writeFloat(s.pitch());
+				},
+				buf -> new Scene(buf.readBoolean(), buf.readDouble(), buf.readDouble(), buf.readDouble(), buf.readFloat(), buf.readFloat()));
+
+		@Override
+		public Type<Scene> type() {
+			return TYPE;
+		}
+	}
+
 	public static final Run NOT_IN_RUN = new Run(false, 0, 0, 0, 0, "", -1, -1, 0, -1, false, "", List.of());
 }
