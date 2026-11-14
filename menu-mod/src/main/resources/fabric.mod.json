@@ -12,6 +12,7 @@
   "icon": "assets/minehouse-menu/icon.png",
   "environment": "client",
   "entrypoints": {
+    "preLaunch": ["pro.minehouse.menu.PreLaunchUpdate"],
     "client": [
       "pro.minehouse.menu.MinehouseMenu",
       "pro.minehouse.anvilclient.MinehouseAnvilClient",

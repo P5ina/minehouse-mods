@@ -20,7 +20,11 @@ public final class UpdateApplier {
 	public record Move(String from, String to) {
 	}
 
-	public record Plan(List<Move> moves, List<String> deletes) {
+	/**
+	 * `relaunch`: the game's command line to start again once the files are in
+	 * place (null: don't), run in `dir`.
+	 */
+	public record Plan(List<Move> moves, List<String> deletes, List<String> relaunch, String dir) {
 	}
 
 	private static final Gson GSON = new Gson();
@@ -95,6 +99,19 @@ public final class UpdateApplier {
 			retry(() -> Files.deleteIfExists(Path.of(d)), d, errors);
 		}
 		System.out.println(errors.isEmpty() ? "MineHouse pack updated" : "Failed: " + errors);
+		if (plan.relaunch() != null && !plan.relaunch().isEmpty()) {
+			try {
+				new ProcessBuilder(plan.relaunch())
+					.directory(plan.dir() == null ? null : new java.io.File(plan.dir()))
+					.redirectErrorStream(true)
+					.redirectOutput(ProcessBuilder.Redirect.DISCARD)
+					.start();
+				System.out.println("Game restarted");
+			} catch (Exception e) {
+				System.out.println("Can't restart the game: " + e);
+				UpdateWindow.tellRestart();
+			}
+		}
 	}
 
 	private interface IoAction {

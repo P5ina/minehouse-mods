@@ -96,6 +96,8 @@ public final class PackUpdater {
 	/** The player's choice as of the last run, applied after restart if it changed files. */
 	private static volatile Set<String> disabledNow = Set.of();
 	private static volatile boolean changed;
+	/** The pre-launch check already brought the pack up to date (or scheduled it): no background run. */
+	private static volatile boolean checkedBeforeLaunch;
 
 	private PackUpdater() {
 	}
@@ -148,6 +150,9 @@ public final class PackUpdater {
 	}
 
 	public static void start() {
+		if (checkedBeforeLaunch) {
+			return;
+		}
 		State state = readState();
 		if (state == null) {
 			// Not installed from our pack (e.g. a dev run): nothing to keep in sync.
@@ -193,8 +198,12 @@ public final class PackUpdater {
 	}
 
 	private static Manifest fetchManifest() throws Exception {
+		return fetchManifest(Duration.ofSeconds(20));
+	}
+
+	private static Manifest fetchManifest(Duration timeout) throws Exception {
 		HttpResponse<String> res = HTTP.send(
-			HttpRequest.newBuilder(URI.create(MenuConfig.updateUrl)).timeout(Duration.ofSeconds(20)).GET().build(),
+			HttpRequest.newBuilder(URI.create(MenuConfig.updateUrl)).timeout(timeout).GET().build(),
 			HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
 		);
 		if (res.statusCode() != 200) {
@@ -238,14 +247,14 @@ public final class PackUpdater {
 		return f.choices() == null || f.choices().isEmpty() || f.choices().stream().anyMatch(on::contains);
 	}
 
-	private static synchronized void run(Set<String> chosen) throws Exception {
-		phase = Phase.CHECKING;
-		if (manifest == null) {
-			manifest = fetchManifest();
+	/** What it takes to bring the game dir in line with the manifest. */
+	record Work(List<PackFile> download, List<String> deletes, State next, Set<String> disabled) {
+		boolean empty() {
+			return download.isEmpty() && deletes.isEmpty();
 		}
-		Manifest m = manifest;
-		State state = installedState;
-		remoteVersion = m.version();
+	}
+
+	private static Work plan(Manifest m, State state, Set<String> chosen) throws IOException {
 		Path root = gameDir().toAbsolutePath().normalize();
 		for (PackFile f : m.files()) {
 			safe(root, f.path());
@@ -276,7 +285,6 @@ public final class PackUpdater {
 				}
 			}
 		}
-		disabledNow = Set.copyOf(disabled);
 		Set<String> on = enabled(m, disabled);
 		List<PackFile> keep = m.files().stream().filter(f -> wanted(f, on)).toList();
 		Set<String> keepPaths = keep.stream().map(PackFile::path).collect(Collectors.toSet());
@@ -307,26 +315,48 @@ public final class PackUpdater {
 			}
 		}
 		State next = new State(m.version(), keep.stream().map(PackFile::path).toList(), List.copyOf(new TreeSet<>(disabled)), installed);
+		return new Work(download, deletes, next, Set.copyOf(disabled));
+	}
 
-		if (download.isEmpty() && deletes.isEmpty()) {
+	private static void saveState(State next, State state) throws IOException {
+		if (!GSON.toJson(next).equals(GSON.toJson(state))) {
+			Files.writeString(stateFile(), GSON.toJson(next), StandardCharsets.UTF_8);
+			installedState = next;
+		}
+	}
+
+	private static Path tmpFor(PackFile f) {
+		Path target = safe(gameDir().toAbsolutePath().normalize(), f.path());
+		return target.resolveSibling(target.getFileName() + ".mhnew");
+	}
+
+	private static synchronized void run(Set<String> chosen) throws Exception {
+		phase = Phase.CHECKING;
+		if (manifest == null) {
+			manifest = fetchManifest();
+		}
+		Manifest m = manifest;
+		State state = installedState;
+		remoteVersion = m.version();
+		Work w = plan(m, state, chosen);
+		disabledNow = w.disabled();
+
+		if (w.empty()) {
 			UpdateApplier.cancel();
 			changed = false;
-			if (!GSON.toJson(next).equals(GSON.toJson(state))) {
-				Files.writeString(stateFile(), GSON.toJson(next), StandardCharsets.UTF_8);
-				installedState = next;
-			}
+			saveState(w.next(), state);
 			localVersion = m.version();
 			phase = Phase.UP_TO_DATE;
 			return;
 		}
 
 		phase = Phase.DOWNLOADING;
-		total = download.size();
+		total = w.download().size();
 		done = 0;
 		List<UpdateApplier.Move> moves = new ArrayList<>();
-		for (PackFile f : download) {
-			Path target = safe(root, f.path());
-			Path tmp = target.resolveSibling(target.getFileName() + ".mhnew");
+		for (PackFile f : w.download()) {
+			Path target = safe(gameDir().toAbsolutePath().normalize(), f.path());
+			Path tmp = tmpFor(f);
 			Files.createDirectories(target.getParent());
 			HttpResponse<InputStream> body = HTTP.send(
 				HttpRequest.newBuilder(URI.create(f.url())).timeout(Duration.ofMinutes(5)).GET().build(),
@@ -347,14 +377,138 @@ public final class PackUpdater {
 		}
 
 		Path nextState = stateFile().resolveSibling("minehouse-pack.json.mhnew");
-		Files.writeString(nextState, GSON.toJson(next), StandardCharsets.UTF_8);
+		Files.writeString(nextState, GSON.toJson(w.next()), StandardCharsets.UTF_8);
 		moves.add(new UpdateApplier.Move(nextState.toString(), stateFile().toString()));
 
-		UpdateApplier.scheduleOnExit(new UpdateApplier.Plan(moves, deletes));
+		UpdateApplier.scheduleOnExit(new UpdateApplier.Plan(moves, w.deletes(), null, null));
 		changed = true;
 		phase = Phase.READY;
 		MinehouseMenu.LOG.info("Modpack {} -> {}: {} files downloaded, {} to remove after exit",
-			state.version(), m.version(), download.size(), deletes.size());
+			state.version(), m.version(), w.download().size(), w.deletes().size());
+	}
+
+	/** Files the running game has loaded: they can only be swapped after it exits. */
+	private static boolean loaded(String path) {
+		return path.startsWith("mods/");
+	}
+
+	/**
+	 * Runs before Minecraft loads (Fabric preLaunch), like Essential's updater:
+	 * checks the site and, if the pack changed, downloads it in a small window
+	 * ({@link UpdateWindow}, a separate process so the game JVM never touches AWT).
+	 * Files the game hasn't opened yet go into place at once; changed mods need a
+	 * restart, so the game exits, {@link UpdateApplier} swaps them and starts the
+	 * game again with the same command line (or asks the player to, when the
+	 * launcher can't be repeated, e.g. Prism). Anything unexpected falls back to
+	 * the background update in {@link #start()}.
+	 */
+	static void preLaunch() {
+		State state = readState();
+		if (state == null || MenuConfig.updateUrl.isEmpty()) {
+			return;
+		}
+		installedState = state;
+		disabledNow = state.disabledSet();
+		localVersion = state.version();
+		Manifest m;
+		try {
+			m = fetchManifest(Duration.ofSeconds(6));
+		} catch (Exception e) {
+			MinehouseMenu.LOG.warn("Pre-launch update check failed, will retry in the background", e);
+			return;
+		}
+		manifest = m;
+		remoteVersion = m.version();
+		try {
+			Work w = plan(m, state, null);
+			disabledNow = w.disabled();
+			if (w.empty()) {
+				saveState(w.next(), state);
+				localVersion = m.version();
+				phase = Phase.UP_TO_DATE;
+				checkedBeforeLaunch = true;
+				return;
+			}
+			boolean restart = w.download().stream().anyMatch(f -> loaded(f.path()))
+				|| w.deletes().stream().anyMatch(d -> loaded(rel(d)));
+			Path marker = stateFile().resolveSibling("minehouse-update-restart.txt");
+			if (restart && Files.exists(marker)
+				&& System.currentTimeMillis() - Files.getLastModifiedTime(marker).toMillis() < 180_000) {
+				// We just restarted for an update and still differ: don't loop, update in the background.
+				MinehouseMenu.LOG.warn("Pack still differs right after an update restart, skipping the window");
+				return;
+			}
+			List<String> relaunch = restart ? Relaunch.command() : null;
+
+			Path job = Files.createTempDirectory("minehouse-update").resolve("job.txt");
+			StringBuilder sb = new StringBuilder();
+			sb.append(state.version()).append('\t').append(m.version()).append('\t')
+				.append(restart ? (relaunch != null ? "relaunch" : "restart") : "none").append('\n');
+			for (PackFile f : w.download()) {
+				Files.createDirectories(tmpFor(f).getParent());
+				sb.append(f.url()).append('\t').append(f.sha512()).append('\t').append(f.size()).append('\t')
+					.append(tmpFor(f)).append('\t').append(Path.of(f.path()).getFileName()).append('\n');
+			}
+			Files.writeString(job, sb.toString(), StandardCharsets.UTF_8);
+			int code = UpdateWindow.runFor(job);
+			MinehouseMenu.LOG.info("Update window finished with code {}", code);
+			if (code != UpdateWindow.DONE && code != UpdateWindow.LATER) {
+				return; // skipped or failed: the background update takes over
+			}
+
+			List<UpdateApplier.Move> later = new ArrayList<>();
+			for (PackFile f : w.download()) {
+				Path tmp = tmpFor(f);
+				Path target = safe(gameDir().toAbsolutePath().normalize(), f.path());
+				if (!Files.exists(tmp) || Files.size(tmp) != f.size()) {
+					MinehouseMenu.LOG.warn("{} missing after the update window", tmp);
+					return;
+				}
+				if (loaded(f.path())) {
+					later.add(new UpdateApplier.Move(tmp.toString(), target.toString()));
+				} else {
+					Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+				}
+			}
+			List<String> deletesLater = new ArrayList<>();
+			for (String d : w.deletes()) {
+				if (loaded(rel(d))) {
+					deletesLater.add(d);
+				} else {
+					Files.deleteIfExists(Path.of(d));
+				}
+			}
+			if (!restart) {
+				saveState(w.next(), state);
+				localVersion = m.version();
+				phase = Phase.UP_TO_DATE;
+				checkedBeforeLaunch = true;
+				MinehouseMenu.LOG.info("Modpack {} -> {} applied before launch", state.version(), m.version());
+				return;
+			}
+			Path nextState = stateFile().resolveSibling("minehouse-pack.json.mhnew");
+			Files.writeString(nextState, GSON.toJson(w.next()), StandardCharsets.UTF_8);
+			later.add(new UpdateApplier.Move(nextState.toString(), stateFile().toString()));
+			Files.writeString(marker, Long.toString(System.currentTimeMillis()), StandardCharsets.UTF_8);
+			boolean now = code == UpdateWindow.DONE;
+			UpdateApplier.scheduleOnExit(new UpdateApplier.Plan(later, deletesLater,
+				now ? relaunch : null, now && relaunch != null ? System.getProperty("user.dir") : null));
+			checkedBeforeLaunch = true;
+			changed = true;
+			phase = Phase.READY;
+			if (now) {
+				MinehouseMenu.LOG.info("Modpack {} -> {}: restarting the game to finish the update", state.version(), m.version());
+				System.exit(0);
+			}
+		} catch (Exception e) {
+			MinehouseMenu.LOG.warn("Pre-launch update failed, will retry in the background", e);
+		}
+	}
+
+	/** Absolute path inside the game dir -> manifest-style relative path. */
+	private static String rel(String abs) {
+		Path root = gameDir().toAbsolutePath().normalize();
+		return root.relativize(Path.of(abs).toAbsolutePath().normalize()).toString().replace('\\', '/');
 	}
 
 	/** Resolves a manifest path inside the game dir; refuses anything that escapes it. */
