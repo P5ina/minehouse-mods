@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
+import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
@@ -30,11 +31,36 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		// The mode's own interface: nothing of it goes to the chat.
 		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Note.TYPE, RiftUiPayloads.Note.CODEC);
 		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Lobby.TYPE, RiftUiPayloads.Lobby.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Roster.TYPE, RiftUiPayloads.Roster.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Run.TYPE, RiftUiPayloads.Run.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Result.TYPE, RiftUiPayloads.Result.CODEC);
 		PayloadTypeRegistry.serverboundPlay().register(RiftUiPayloads.Action.TYPE, RiftUiPayloads.Action.CODEC);
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Note.TYPE, (payload, context) -> RiftHud.note(payload));
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Lobby.TYPE, (payload, context) -> RiftHud.lobby(payload));
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Roster.TYPE, (payload, context) -> RiftHud.roster(payload));
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Run.TYPE, (payload, context) -> RiftHud.run(payload));
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Result.TYPE, (payload, context) -> RiftHud.result(payload));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> RiftHud.clear());
+		ClientTickEvents.END_CLIENT_TICK.register(RiftHud::tick);
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minehouse-rift", "hud"), RiftHud::draw);
+		// In a run our own health stands in the corner: no hearts, no armour row. The lobby is a
+		// screen over a scene: nothing of the usual game interface belongs there.
+		for (Identifier vanilla : new Identifier[] {VanillaHudElements.HEALTH_BAR, VanillaHudElements.ARMOR_BAR}) {
+			HudElementRegistry.replaceElement(vanilla, old -> (g, delta) -> {
+				if (!RiftHud.inRun() && !RiftHud.lobby().inLobby()) {
+					old.extractRenderState(g, delta);
+				}
+			});
+		}
+		for (Identifier vanilla : new Identifier[] {VanillaHudElements.CROSSHAIR, VanillaHudElements.HOTBAR, VanillaHudElements.FOOD_BAR,
+				VanillaHudElements.AIR_BAR, VanillaHudElements.INFO_BAR, VanillaHudElements.INFO_BAR_FOREGROUND, VanillaHudElements.EXPERIENCE_LEVEL,
+				VanillaHudElements.HELD_ITEM_TOOLTIP}) {
+			HudElementRegistry.replaceElement(vanilla, old -> (g, delta) -> {
+				if (!RiftHud.lobby().inLobby()) {
+					old.extractRenderState(g, delta);
+				}
+			});
+		}
 
 		if ("rift".equals(System.getProperty("minehouse.selftest"))) {
 			SelfTest.register();

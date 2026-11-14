@@ -61,4 +61,58 @@ class RiftUiTest {
 		assertTrue(PartyScreen.sameButtons(lobby(true, "a", 3), lobby(true, "b", 2)));
 		assertFalse(PartyScreen.sameButtons(lobby(true, "a", 3), lobby(false, "a", 3)));
 	}
+
+	private static RiftUiPayloads.Run run(int room, int wave, int waves) {
+		return new RiftUiPayloads.Run(true, room, 3, wave, waves, "Страж Разлома", 620, 18, 30, 60, true, "Friend",
+				List.of(new RiftUiPayloads.Mate("Friend", 18, 20, (byte) 0, -1), new RiftUiPayloads.Mate("James", 0, 20, (byte) 1, 22)));
+	}
+
+	@Test
+	void runRosterAndResultSurviveTheWire() {
+		for (RiftUiPayloads.Run r : List.of(run(2, 1, 2), RiftUiPayloads.NOT_IN_RUN)) {
+			FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+			RiftUiPayloads.Run.CODEC.encode(buf, r);
+			assertEquals(r, RiftUiPayloads.Run.CODEC.decode(buf));
+			assertEquals(0, buf.readableBytes());
+		}
+		RiftUiPayloads.Roster roster = new RiftUiPayloads.Roster(List.of(new RiftUiPayloads.Person("Friend", (byte) 0), new RiftUiPayloads.Person("James", (byte) 2)));
+		FriendlyByteBuf buf = new FriendlyByteBuf(Unpooled.buffer());
+		RiftUiPayloads.Roster.CODEC.encode(buf, roster);
+		assertEquals(roster, RiftUiPayloads.Roster.CODEC.decode(buf));
+		assertEquals(0, buf.readableBytes());
+		RiftUiPayloads.Result result = new RiftUiPayloads.Result(true, 462, 15, List.of(new RiftUiPayloads.Score("Friend", 31, 2, 0, false)));
+		RiftUiPayloads.Result.CODEC.encode(buf, result);
+		assertEquals(result, RiftUiPayloads.Result.CODEC.decode(buf));
+		assertEquals(0, buf.readableBytes());
+	}
+
+	@Test
+	void theRunSaysWhereWeAre() {
+		assertEquals("ЗАЛ 2 ИЗ 3 · ВОЛНА 1 ИЗ 2", RiftHud.objective(run(2, 1, 2)));
+		assertEquals("ЗАЛ 3 ИЗ 3", RiftHud.objective(run(3, 0, 0)));
+		assertEquals("ВХОД В РАЗЛОМ", RiftHud.objective(run(0, 0, 0)));
+		assertEquals("18", RiftHud.mateNote(run(1, 0, 0).mates().get(0)));
+		assertEquals("УПАЛ · 22 с", RiftHud.mateNote(run(1, 0, 0).mates().get(1)));
+		assertEquals("ВЫБЫЛ", RiftHud.mateNote(new RiftUiPayloads.Mate("x", 0, 20, (byte) 2, -1)));
+		assertEquals("7:42", Ui.clock(462));
+	}
+
+	@Test
+	void theBestIsWhoKilledMostAndLasted() {
+		RiftUiPayloads.Score a = new RiftUiPayloads.Score("a", 10, 0, 0, false);
+		RiftUiPayloads.Score b = new RiftUiPayloads.Score("b", 10, 2, 1, false);
+		RiftUiPayloads.Score gone = new RiftUiPayloads.Score("c", 40, 0, 3, true);
+		assertEquals(1, RiftHud.best(List.of(a, b, gone)));
+		assertEquals(-1, RiftHud.best(List.of(gone, new RiftUiPayloads.Score("d", 0, 0, 0, false))));
+	}
+
+	@Test
+	void theLobbyNamesItsPlaces() {
+		assertEquals("ЛИДЕР · ГОТОВ", PartyScreen.slotNote(new RiftUiPayloads.Slot("Leader", true, true), false));
+		assertEquals("НЕ ГОТОВ", PartyScreen.slotNote(new RiftUiPayloads.Slot("Friend", false, false), true));
+		assertEquals("ПОДБОР", PartyScreen.slotNote(new RiftUiPayloads.Slot("", false, false), true));
+		assertEquals("СВОБОДНО", PartyScreen.slotNote(new RiftUiPayloads.Slot("", false, false), false));
+		assertEquals("в забеге", PartyScreen.personNote(new RiftUiPayloads.Person("James", (byte) 2)));
+		assertTrue(PartyScreen.rowsThatFit(240) >= 2 && PartyScreen.rowsThatFit(1080) == 8 && PartyScreen.rowsThatFit(100) == 1);
+	}
 }

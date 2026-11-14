@@ -49,7 +49,13 @@ final class SelfTest {
 			RiftHud.lobby(new RiftUiPayloads.Lobby(true, java.util.List.of(new RiftUiPayloads.Slot("Tester", true, false)), false, "", true, true, true,
 					false, "", -1));
 			ui &= RiftHud.feedSize() == 1 && RiftHud.lobby().inLobby() && "Разлом открыт".equals(RiftText.component("&dРазлом &7открыт").getString());
+			ui &= ClientPlayNetworking.getGlobalReceivers().contains(RiftUiPayloads.Run.TYPE.id())
+					&& ClientPlayNetworking.getGlobalReceivers().contains(RiftUiPayloads.Roster.TYPE.id())
+					&& ClientPlayNetworking.getGlobalReceivers().contains(RiftUiPayloads.Result.TYPE.id());
+			RiftHud.run(new RiftUiPayloads.Run(true, 1, 3, 1, 2, "", -1, -1, 30, -1, false, "", java.util.List.of()));
+			ui &= RiftHud.inRun();
 			RiftHud.clear();
+			ui &= !RiftHud.inRun();
 			ui &= RiftHud.feedSize() == 0 && !RiftHud.lobby().inLobby();
 
 			MinehouseRiftClient.LOG.info(receiver && codec && geometry && on && off && ui ? "MINEHOUSE_RIFT_CLIENT_OK"
