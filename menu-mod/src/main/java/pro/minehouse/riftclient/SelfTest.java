@@ -42,8 +42,19 @@ final class SelfTest {
 			TopDown.apply(new RiftViewPayload(false, 0, 0, 0, false));
 			boolean off = !TopDown.active() && !TopDown.downed();
 
-			MinehouseRiftClient.LOG.info(receiver && codec && geometry && on && off ? "MINEHOUSE_RIFT_CLIENT_OK"
-					: "MINEHOUSE_RIFT_CLIENT_FAIL: receiver " + receiver + ", codec " + codec + ", geometry " + geometry + ", on " + on + ", off " + off);
+			// The mode's interface: its channels, a feed line, the party of the lobby.
+			boolean ui = ClientPlayNetworking.getGlobalReceivers().contains(RiftUiPayloads.Note.TYPE.id())
+					&& ClientPlayNetworking.getGlobalReceivers().contains(RiftUiPayloads.Lobby.TYPE.id());
+			RiftHud.note(new RiftUiPayloads.Note(RiftUiPayloads.FEED, "&dРазлом &7открыт", ""));
+			RiftHud.lobby(new RiftUiPayloads.Lobby(true, java.util.List.of(new RiftUiPayloads.Slot("Tester", true, false)), false, "", true, true, true,
+					false, "", -1));
+			ui &= RiftHud.feedSize() == 1 && RiftHud.lobby().inLobby() && "Разлом открыт".equals(RiftText.component("&dРазлом &7открыт").getString());
+			RiftHud.clear();
+			ui &= RiftHud.feedSize() == 0 && !RiftHud.lobby().inLobby();
+
+			MinehouseRiftClient.LOG.info(receiver && codec && geometry && on && off && ui ? "MINEHOUSE_RIFT_CLIENT_OK"
+					: "MINEHOUSE_RIFT_CLIENT_FAIL: receiver " + receiver + ", codec " + codec + ", geometry " + geometry + ", on " + on + ", off " + off
+							+ ", ui " + ui);
 			client.stop();
 		});
 	}

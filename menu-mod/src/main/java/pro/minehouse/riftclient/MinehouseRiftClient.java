@@ -14,7 +14,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.resources.Identifier;
 
-/** The client half of the Rift mode: the view from above, its cursor and controls. */
+/** The client half of the Rift mode: the view from above, its cursor and controls, and the mode's interface. */
 public final class MinehouseRiftClient implements ClientModInitializer {
 	public static final Logger LOG = LoggerFactory.getLogger("minehouse-rift-client");
 
@@ -25,6 +25,15 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> TopDown.stop());
 		ClientTickEvents.END_CLIENT_TICK.register(TopDown::tick);
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minehouse-rift", "cursor"), MinehouseRiftClient::cursor);
+
+		// The mode's own interface: nothing of it goes to the chat.
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Note.TYPE, RiftUiPayloads.Note.CODEC);
+		PayloadTypeRegistry.clientboundPlay().register(RiftUiPayloads.Lobby.TYPE, RiftUiPayloads.Lobby.CODEC);
+		PayloadTypeRegistry.serverboundPlay().register(RiftUiPayloads.Action.TYPE, RiftUiPayloads.Action.CODEC);
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Note.TYPE, (payload, context) -> RiftHud.note(payload));
+		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Lobby.TYPE, (payload, context) -> RiftHud.lobby(payload));
+		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> RiftHud.clear());
+		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minehouse-rift", "hud"), RiftHud::draw);
 
 		if ("rift".equals(System.getProperty("minehouse.selftest"))) {
 			SelfTest.register();
