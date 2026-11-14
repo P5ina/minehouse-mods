@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.PauseScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
@@ -254,7 +255,9 @@ public final class PartyScreen extends Screen {
 	@Override
 	public boolean keyPressed(KeyEvent event) {
 		if (event.isEscape()) {
-			this.minecraft.pauseGame(false); // the game menu; the lobby is back when it closes
+			// The game menu; the lobby is back when it closes. Not pauseGame(): that one only
+			// opens the menu when no screen is up, and this screen always is.
+			this.minecraft.gui.setScreen(new PauseScreen(true));
 			return true;
 		}
 		boolean typing = this.nickBox != null && this.nickBox.isFocused();

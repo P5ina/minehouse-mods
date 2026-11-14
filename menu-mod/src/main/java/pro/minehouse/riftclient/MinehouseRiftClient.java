@@ -41,6 +41,9 @@ public final class MinehouseRiftClient implements ClientModInitializer {
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Run.TYPE, (payload, context) -> RiftHud.run(payload));
 		ClientPlayNetworking.registerGlobalReceiver(RiftUiPayloads.Result.TYPE, (payload, context) -> RiftHud.result(payload));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> RiftHud.clear());
+		// Every arrival on a server starts clean: the proxy moves us between servers without a
+		// disconnect, and what the last one showed must not stay on the screen.
+		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> RiftHud.leftServer());
 		ClientTickEvents.END_CLIENT_TICK.register(RiftHud::tick);
 		HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("minehouse-rift", "hud"), RiftHud::draw);
 		// In a run our own health stands in the corner: no hearts, no armour row. The lobby is a

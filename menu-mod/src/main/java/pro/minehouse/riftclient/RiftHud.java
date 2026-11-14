@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
@@ -128,8 +129,21 @@ public final class RiftHud {
 		result = null;
 	}
 
+	/** We are no longer on the server of the mode: its screens and its view go away. */
+	static void leftServer() {
+		PartyScreen.close();
+		clear();
+		TopDown.stop();
+	}
+
 	/** Each client tick: in the lobby its screen is always there (after Esc and the game menu too). */
 	static void tick(Minecraft mc) {
+		// Moved to another server behind the proxy (the lobby's "to survival"): for the game that
+		// is not a disconnect, so nothing told us the lobby is gone. The other server does not
+		// speak the mode's channels; that is how we know.
+		if ((lobby.inLobby() || run.inRun()) && !ClientPlayNetworking.canSend(RiftUiPayloads.Action.TYPE)) {
+			leftServer();
+		}
 		if (lobby.inLobby() && mc.level != null && mc.gui.screen() == null) {
 			PartyScreen.open();
 		}
